@@ -42,6 +42,7 @@ class ptbxlDS(torch.utils.data.Dataset):
         metadata.ecg_id = metadata.ecg_id.astype(int)
         self.metadata = metadata
         self.lowres = lowres
+        self.root_folder = root_folder
 
     def __len__(self):
         return len(self.metadata)
@@ -49,5 +50,5 @@ class ptbxlDS(torch.utils.data.Dataset):
     def __getitem__(self, index: int):
         # Outputs ECG data of shape sig_len x num_leads (e.g. for low res 1000 x 12)
         ecg_id = self.metadata.iloc[index]["ecg_id"]
-        sig, sigmeta = load_single_record(ecg_id, lowres=self.lowres)
-        return sig
+        sig, sigmeta = load_single_record(ecg_id, lowres=self.lowres, root_dir=self.root_folder)
+        return {'waveform': torch.Tensor(sig.transpose()).float()}

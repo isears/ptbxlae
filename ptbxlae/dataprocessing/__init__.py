@@ -3,20 +3,19 @@ import matplotlib.pyplot as plt
 import ecg_plot
 
 
-def load_single_record(id: int = 1, lowres: bool = True):
+def load_single_record(id: int = 1, lowres: bool = True, root_dir: str = "./data"):
     id_str = "{:05d}".format(id)
     prefix_dir = f"{id_str[:2]}000"
 
     if lowres:
-        return wfdb.rdsamp(f"../data/records100/{prefix_dir}/{id_str}_lr")
+        return wfdb.rdsamp(f"{root_dir}/records100/{prefix_dir}/{id_str}_lr")
     else:
-        return wfdb.rdsamp(f"../data/records500/{prefix_dir}/{id_str}_hr")
+        return wfdb.rdsamp(f"{root_dir}/records500/{prefix_dir}/{id_str}_hr")
 
 
 def plot_raw_data(sig, sigmeta, savefile: str = None):
-    ecg_plot.plot(
-        sig.transpose()[:, :250], sample_rate=sigmeta["fs"], columns=4, title=None
-    )
+    freq = sigmeta["fs"]
+    ecg_plot.plot(sig[:, : int(freq * 2.5)], sample_rate=freq, columns=4, title=None)
     plt.xticks(visible=False)
     plt.yticks(visible=False)
 
