@@ -52,7 +52,8 @@ class PtbxlDS(torch.utils.data.Dataset):
 
     def __getitem__(self, index: int):
         # Outputs ECG data of shape sig_len x num_leads (e.g. for low res 1000 x 12)
-        ecg_id = self.metadata.iloc[index]["ecg_id"]
+        this_meta = self.metadata.iloc[index]
+        ecg_id = this_meta["ecg_id"]
         sig, sigmeta = load_single_record(
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
@@ -80,3 +81,18 @@ class PtbxlDM(L.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.test_ds, num_workers=16, batch_size=self.batch_size)
+
+
+def load_testset_to_mem(root_folder: str = "./data"):
+    dm = PtbxlDM(root_folder=root_folder)
+    dm.setup(stage="test")
+    dl = dm.test_dataloader()
+
+    all_batches = [x for x in dl]
+    return torch.cat(all_batches)
+
+
+if __name__ == "__main__":
+    ds = PtbxlDS()
+
+    print(ds[0])
