@@ -1,0 +1,26 @@
+# fit:
+#   trainer:
+#     max_epochs: 100
+#     callbacks:
+#       - class_path: "pytorch_lightning.callbacks.EarlyStopping"
+#         init_args:
+#           patience: 3
+#           monitor: "val_loss"
+
+
+#       # - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+#       #   init_args:
+#       #     dirpath: ./cache/savedmodels/
+#       #     save_last: True
+
+fit:
+  trainer:
+    callbacks:
+      - class_path: lightning.pytorch.callbacks.EarlyStopping
+        init_args:
+          patience: 5
+          monitor: val_loss
+      - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+        init_args:
+          dirpath: ./cache/savedmodels/
+          save_last: True
