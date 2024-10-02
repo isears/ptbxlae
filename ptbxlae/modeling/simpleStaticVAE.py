@@ -39,12 +39,6 @@ class StaticSimpleEncoder(torch.nn.Module):
 
         self.conv4 = Conv1d(in_channels=96, out_channels=1, kernel_size=5, padding=2)
 
-        # self.mu = Linear(40, 20)
-        # self.sd = Sequential(
-        #     Linear(40, 20),
-        #     Softplus()
-        # )
-
     def forward(self, x):
         out = self.conv1(x)
         out = self.bn1(out)

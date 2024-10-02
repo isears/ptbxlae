@@ -1,4 +1,4 @@
-from ptbxlae.modeling.ecgvae import StaticSimpleVAE
+from ptbxlae.modeling.simpleStaticVAE import StaticSimpleVAE
 from lightning.pytorch.cli import LightningCLI
 from ptbxlae.dataprocessing.ptbxlDS import PtbxlDM
 
