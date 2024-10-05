@@ -15,6 +15,7 @@
 
 fit:
   trainer:
+    max_epochs: 100
     callbacks:
       - class_path: lightning.pytorch.callbacks.EarlyStopping
         init_args:

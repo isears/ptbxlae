@@ -109,6 +109,7 @@ class Resnet1dEncoder(torch.nn.Module):
         super(Resnet1dEncoder, self).__init__()
 
         same_padding = (kernel_size - 1) // 2
+        subsample_rate = 4
 
         self.conv = Conv1d(
             in_channels=channels_in,
@@ -124,28 +125,28 @@ class Resnet1dEncoder(torch.nn.Module):
             ResidualBlock(24, 24, kernel_size),
             ResidualBlock(24, 24, kernel_size),
             ResidualBlock(24, 24, kernel_size),
-            AvgPool1d(kernel_size=(kernel_size - 1), stride=(kernel_size - 1)),
+            MaxPool1d(subsample_rate),
         )
 
         self.layer2 = Sequential(
             ResidualBlock(24, 48, kernel_size),
             ResidualBlock(48, 48, kernel_size),
             ResidualBlock(48, 48, kernel_size),
-            AvgPool1d(kernel_size=(kernel_size - 1), stride=(kernel_size - 1)),
+            MaxPool1d(subsample_rate),
         )
 
         self.layer3 = Sequential(
             ResidualBlock(48, 96, kernel_size),
             ResidualBlock(96, 96, kernel_size),
             ResidualBlock(96, 96, kernel_size),
-            AvgPool1d(kernel_size=(kernel_size - 1), stride=(kernel_size - 1)),
+            MaxPool1d(subsample_rate),
         )
 
         self.layer4 = Sequential(
             ResidualBlock(96, 192, kernel_size),
             ResidualBlock(192, 192, kernel_size),
             ResidualBlock(192, 192, kernel_size),
-            AvgPool1d(kernel_size=(kernel_size - 1), stride=(kernel_size - 1)),
+            MaxPool1d(subsample_rate),
         )
 
         last_layer_size = 192 * (seq_len // ((kernel_size - 1) ** 4))
@@ -186,37 +187,41 @@ class Resnet1dDecoder(torch.nn.Module):
 
         first_layer_size = 192 * (seq_len // ((kernel_size - 1) ** 4))
         same_padding = (kernel_size - 1) // 2
+        subsample_rate = 4
+
+        # Need to track what the encoder seq dims would have been to upsample to the correct sizes
+        encoder_seq_dims = [(seq_len // (subsample_rate**x)) for x in range(0, 4)]
 
         self.linear = Linear(in_features=latent_dim, out_features=first_layer_size)
         self.dropout = Dropout(dropout)
         self.unflatten = Unflatten(dim=1, unflattened_size=(192, -1))
 
         self.layer1 = Sequential(
+            Upsample(size=encoder_seq_dims[-1]),
             ResidualBlock(192, 96, kernel_size, decoder=True),
             ResidualBlock(96, 96, kernel_size, decoder=True),
             ResidualBlock(96, 96, kernel_size, decoder=True),
-            Upsample(scale_factor=(kernel_size - 1)),
         )
 
         self.layer2 = Sequential(
+            Upsample(size=encoder_seq_dims[-2]),
             ResidualBlock(96, 48, kernel_size, decoder=True),
             ResidualBlock(48, 48, kernel_size, decoder=True),
             ResidualBlock(48, 48, kernel_size, decoder=True),
-            Upsample(scale_factor=(kernel_size - 1)),
         )
 
         self.layer3 = Sequential(
+            Upsample(size=encoder_seq_dims[-3]),
             ResidualBlock(48, 24, kernel_size, decoder=True),
             ResidualBlock(24, 24, kernel_size, decoder=True),
             ResidualBlock(24, 24, kernel_size, decoder=True),
-            Upsample(scale_factor=(kernel_size - 1)),
         )
 
         self.layer4 = Sequential(
+            Upsample(size=encoder_seq_dims[-4]),
             ResidualBlock(24, 24, kernel_size, decoder=True),
             ResidualBlock(24, 24, kernel_size, decoder=True),
             ResidualBlock(24, 24, kernel_size, decoder=True),
-            Upsample(scale_factor=(kernel_size - 1)),
         )
 
         self.conv = ConvTranspose1d(
