@@ -1,7 +1,7 @@
 import lightning as L
 from torch.utils.data import DataLoader, random_split
 import torch
-from ptbxlae.dataprocessing.ptbxlDS import PtbxlDS
+from ptbxlae.dataprocessing.ptbxlDS import PtbxlDS, PtbxlCleanDS
 
 
 class BaseDM(L.LightningDataModule):
@@ -33,9 +33,13 @@ class BaseDM(L.LightningDataModule):
 
 
 class PtbxlDM(BaseDM):
-
     def _get_ds(self):
         return PtbxlDS(root_folder=self.root_folder, lowres=False)
+
+
+class PtbxlCleanDM(BaseDM):
+    def _get_ds(self):
+        return PtbxlCleanDS(root_folder=self.root_folder, lowres=False)
 
 
 def load_testset_to_mem(root_folder: str = "./data"):

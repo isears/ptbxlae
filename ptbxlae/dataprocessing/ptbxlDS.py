@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from ptbxlae.dataprocessing import load_single_record
 import neurokit2 as nk
+import numpy as np
 
 
 class PtbxlDS(torch.utils.data.Dataset):
@@ -71,7 +72,33 @@ class PtbxlMedianBeatDS(PtbxlDS):
         raise NotImplementedError()
 
 
+class PtbxlCleanDS(PtbxlDS):
+    def __getitem__(self, index: int):
+        this_meta = self.metadata.iloc[index]
+        ecg_id = this_meta["ecg_id"]
+        sig, sigmeta = load_single_record(
+            ecg_id, lowres=self.lowres, root_dir=self.root_folder
+        )
+
+        # Clean with neurokit
+        sig_clean = np.apply_along_axis(
+            nk.ecg_clean, 1, sig.transpose(), sampling_rate=sigmeta["fs"]
+        )
+
+        sig_max = sig_clean.max()
+        sig_min = sig_clean.min()
+
+        sig_normalized = (sig_clean - sig_min) / (sig_max - sig_min)
+
+        # TODO: there are probably more sophisticated methods to determine baseline
+        estimated_baseline = np.median(sig_normalized)
+
+        sig_rebased = (sig_normalized - estimated_baseline) * 2
+
+        return torch.Tensor(sig_rebased).float()
+
+
 if __name__ == "__main__":
-    ds = PtbxlMedianBeatDS()
+    ds = PtbxlCleanDS()
 
     print(ds[0])
