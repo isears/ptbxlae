@@ -1,6 +1,6 @@
 from ptbxlae.modeling.resnet1dVAE import Resnet1dVAE
 from lightning.pytorch.cli import LightningCLI
-from ptbxlae.dataprocessing.ptbxlDS import PtbxlDM
+from ptbxlae.dataprocessing.dataModules import PtbxlDM
 
 
 def cli_main():
