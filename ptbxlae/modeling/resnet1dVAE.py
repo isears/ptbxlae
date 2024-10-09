@@ -263,6 +263,10 @@ class Resnet1dVAE(L.LightningModule):
         lr: float = 1e-3,
     ):
         super(Resnet1dVAE, self).__init__()
+
+        # Just helpful to have when loading the model
+        self.latent_dim = latent_dim
+
         self.encoder = Resnet1dEncoder(kernel_size, dropout, latent_dim)
         self.decoder = Resnet1dDecoder(kernel_size, dropout, latent_dim)
 
