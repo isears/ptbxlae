@@ -247,8 +247,8 @@ class Resnet1dDecoder(torch.nn.Module):
         x = self.layer4(x)
 
         x = self.conv(x)
-        x = self.bn(x)
-        x = self.activation(x)
+        # x = self.bn(x)
+        # x = self.activation(x)
 
         return x
 

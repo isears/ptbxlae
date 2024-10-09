@@ -15,7 +15,7 @@ class BaseDM(L.LightningDataModule):
             "Base DM called, need to call a subclass that implements _get_ds()"
         )
 
-    def setup(self, stage: str, ds):
+    def setup(self, stage: str):
         ds = self._get_ds()
 
         self.train_ds, self.valid_ds, self.test_ds = random_split(
