@@ -14,6 +14,7 @@ from torch.nn import (
     Flatten,
     Dropout,
     Unflatten,
+    Tanh,
 )
 
 from torchinfo import summary
@@ -234,7 +235,7 @@ class Resnet1dDecoder(torch.nn.Module):
 
         self.bn = BatchNorm1d(12)
         # TODO: is relu really appropriate here?
-        self.activation = ReLU()
+        self.activation = Tanh()
 
     def forward(self, x):
         x = self.linear(x)
@@ -247,8 +248,8 @@ class Resnet1dDecoder(torch.nn.Module):
         x = self.layer4(x)
 
         x = self.conv(x)
-        # x = self.bn(x)
-        # x = self.activation(x)
+        x = self.bn(x)
+        x = self.activation(x)
 
         return x
 
@@ -291,6 +292,7 @@ class Resnet1dVAE(L.LightningModule):
         z = self._reparameterization(m, s)
         x_hat = self.decoder(z)
 
+        # loss = self._loss_fn(x, torch.flip(x_hat, [2]), m, s)
         loss = self._loss_fn(x, x_hat, m, s)
 
         return loss
