@@ -1,4 +1,3 @@
-from lightning.pytorch.utilities.types import TRAIN_DATALOADERS
 import torch
 import pandas as pd
 import os
@@ -61,18 +60,24 @@ class PtbxlDS(torch.utils.data.Dataset):
         return torch.Tensor(sig).transpose(1, 0).float()
 
 
-class PtbxlMedianBeatDS(PtbxlDS):
-
-    def __len__(self):
-        return len(self.metadata)
-
-    def __getitem__(self, index: int):
-        sig = super(PtbxlMedianBeatDS, self).__getitem__(index)
-
-        raise NotImplementedError()
-
-
 class PtbxlCleanDS(PtbxlDS):
+    def _clean_norm(self, sig_raw: np.ndarray, sigmeta: dict) -> np.ndarray:
+        sig_clean = np.apply_along_axis(
+            nk.ecg_clean, 1, sig_raw.transpose(), sampling_rate=sigmeta["fs"]
+        )
+
+        # TODO: there are probably more sophisticated methods to determine baseline
+        estimated_baseline = np.median(sig_clean)
+
+        sig_rebased = sig_clean - estimated_baseline
+
+        sig_max = sig_rebased.max()
+        sig_min = sig_rebased.min()
+
+        sig_normalized = (sig_rebased - sig_min) / (sig_max - sig_min)
+
+        return (sig_normalized - 0.5) * 2
+
     def __getitem__(self, index: int):
         this_meta = self.metadata.iloc[index]
         ecg_id = this_meta["ecg_id"]
@@ -80,25 +85,156 @@ class PtbxlCleanDS(PtbxlDS):
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
 
-        # Clean with neurokit
+        sig_clean_norm = self._clean_norm(sig, sigmeta)
+
+        return torch.Tensor(sig_clean_norm).float()
+
+
+class PtbxlSingleCycleDS(PtbxlCleanDS):
+    """
+    Selects a single cardiac cycle at random from the 10-second sample
+
+    NOTE: each epoch will have slightly different examples based on the random selection
+    """
+
+    def __init__(self, root_folder: str = "./data"):
+        # Keep things high-res given set seq_len
+        super().__init__(root_folder=root_folder, lowres=False)
+
+        # Most beats are < 500, small beats will be padded up to this size
+        self.seq_len = 500
+        # Keep track of the number of beats that were too big to fit in seq_len (ideally want this close to 0)
+        self.exceeded_seq_len_count = 0
+        self.random_generator = torch.Generator().manual_seed(42)
+
+    def __len__(self):
+        return len(self.metadata)
+
+    def __getitem__(self, index: int):
+        this_meta = self.metadata.iloc[index]
+        ecg_id = this_meta["ecg_id"]
+        sig, sigmeta = load_single_record(
+            ecg_id, lowres=self.lowres, root_dir=self.root_folder
+        )
+
         sig_clean = np.apply_along_axis(
             nk.ecg_clean, 1, sig.transpose(), sampling_rate=sigmeta["fs"]
         )
+        lead_II = sig_clean[1]
 
-        sig_max = sig_clean.max()
-        sig_min = sig_clean.min()
+        # Get segments based off single lead (lead II)
+        _, info = nk.ecg_peaks(lead_II, sampling_rate=sigmeta["fs"])
 
-        sig_normalized = (sig_clean - sig_min) / (sig_max - sig_min)
+        # TODO: fix this, too
+        try:
+            _, delineations = nk.ecg_delineate(
+                lead_II, rpeaks=info["ECG_R_Peaks"], sampling_rate=sigmeta["fs"]
+            )
+        except (ZeroDivisionError, ValueError) as e:
+            print("[-] WARN neurokit unable to generate delinetions")
+            padded_cycle = sig_clean[:, 0:500]
+            padmask = np.ones_like(padded_cycle[0])
+            return torch.Tensor(padded_cycle).float(), torch.Tensor(padmask).int()
 
-        # TODO: there are probably more sophisticated methods to determine baseline
-        estimated_baseline = np.median(sig_normalized)
+        # Assuming delineations return equal-length arrays
+        assert len(delineations["ECG_P_Onsets"]) == len(delineations["ECG_T_Offsets"])
 
-        sig_rebased = (sig_normalized - estimated_baseline) * 2
+        # Must have p_onset and t_offset
+        valid_waves = [
+            wave_idx
+            for wave_idx, (p, t) in enumerate(
+                zip(delineations["ECG_P_Onsets"], delineations["ECG_T_Offsets"])
+            )
+            if (not np.isnan(p)) and (not np.isnan(t))
+        ]
 
-        return torch.Tensor(sig_rebased).float()
+        if len(valid_waves) == 0:
+            # TODO: really need to fix this
+            print("[-] WARN: signal without valid waves")
+            padded_cycle = sig_clean[:, 0:500]
+            padmask = np.ones_like(padded_cycle[0])
+            return torch.Tensor(padded_cycle).float(), torch.Tensor(padmask).int()
+
+        random_selection_idx = torch.randint(
+            low=0, high=len(valid_waves), size=(1,), generator=self.random_generator
+        ).item()
+        valid_wave_idx = valid_waves[random_selection_idx]
+
+        assert (not np.isnan(delineations["ECG_P_Onsets"][valid_wave_idx])) and (
+            not np.isnan(delineations["ECG_T_Offsets"][valid_wave_idx])
+        )
+
+        single_cycle = sig_clean[
+            :,
+            delineations["ECG_P_Onsets"][valid_wave_idx] : delineations[
+                "ECG_T_Offsets"
+            ][valid_wave_idx],
+        ]
+        if single_cycle.shape[1] > self.seq_len:
+            print(f"[-] WARN abnormally large cardiac cycle {single_cycle.shape[1]}")
+            trim_total = single_cycle.shape[1] - self.seq_len
+
+            left_trim = trim_total // 2 + (trim_total % 2)
+            right_trim = trim_total // 2
+
+            trimmed_cycle = single_cycle[
+                :, left_trim : (single_cycle.shape[1] - right_trim)
+            ]
+            assert trimmed_cycle.shape[1] == self.seq_len, trimmed_cycle.shape[1]
+            padmask = np.ones(self.seq_len)
+
+            return torch.Tensor(trimmed_cycle).float(), torch.Tensor(padmask).int()
+
+        pad_size = self.seq_len - single_cycle.shape[1]
+        left_pad = pad_size // 2 + (pad_size % 2)
+        right_pad = pad_size // 2
+
+        padded_cycle = np.pad(
+            single_cycle, ((0, 0), (left_pad, right_pad)), constant_values=0
+        )
+        padmask = np.concatenate(
+            [
+                np.zeros(
+                    left_pad,
+                ),
+                np.ones(
+                    single_cycle.shape[1],
+                ),
+                np.zeros(
+                    right_pad,
+                ),
+            ]
+        )
+
+        return torch.Tensor(padded_cycle).float(), torch.Tensor(padmask).int()
+
+
+class PtbxlSimpleSingleCycleDS(PtbxlSingleCycleDS):
+    """
+    Instead of fully delineating the ECG, just get a sample of data around one of the R peaks
+    """
+
+    def __getitem__(self, index):
+        this_meta = self.metadata.iloc[index]
+        ecg_id = this_meta["ecg_id"]
+        sig, sigmeta = load_single_record(
+            ecg_id, lowres=self.lowres, root_dir=self.root_folder
+        )
+
+        sig_clean = np.apply_along_axis(
+            nk.ecg_clean, 1, sig.transpose(), sampling_rate=sigmeta["fs"]
+        )
+        lead_II = sig_clean[1]
+
+        # Get segments based off single lead (lead II)
+        _, info = nk.ecg_peaks(lead_II, sampling_rate=sigmeta["fs"])
+
+        eligible_peaks = [p for p in info["ECG_R_Peaks"] if p > self.seq_len // 2]
+
+        return 0
 
 
 if __name__ == "__main__":
-    ds = PtbxlCleanDS()
+    ds = PtbxlSimpleSingleCycleDS()
 
     print(ds[0])

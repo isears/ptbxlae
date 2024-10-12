@@ -1,10 +1,10 @@
-from ptbxlae.modeling.resnet1dVAE import Resnet1dVAE
+from ptbxlae.modeling.feedForwardVAE import SingleChannelFFNNVAE
 from lightning.pytorch.cli import LightningCLI
-from ptbxlae.dataprocessing.dataModules import PtbxlCleanDM
+from ptbxlae.dataprocessing.dataModules import PtbxlSingleCycleDM
 
 
 def cli_main():
-    cli = LightningCLI(Resnet1dVAE, PtbxlCleanDM)
+    cli = LightningCLI(SingleChannelFFNNVAE, PtbxlSingleCycleDM)
 
 
 if __name__ == "__main__":
