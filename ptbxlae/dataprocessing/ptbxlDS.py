@@ -209,32 +209,7 @@ class PtbxlSingleCycleDS(PtbxlCleanDS):
         return torch.Tensor(padded_cycle).float(), torch.Tensor(padmask).int()
 
 
-class PtbxlSimpleSingleCycleDS(PtbxlSingleCycleDS):
-    """
-    Instead of fully delineating the ECG, just get a sample of data around one of the R peaks
-    """
-
-    def __getitem__(self, index):
-        this_meta = self.metadata.iloc[index]
-        ecg_id = this_meta["ecg_id"]
-        sig, sigmeta = load_single_record(
-            ecg_id, lowres=self.lowres, root_dir=self.root_folder
-        )
-
-        sig_clean = np.apply_along_axis(
-            nk.ecg_clean, 1, sig.transpose(), sampling_rate=sigmeta["fs"]
-        )
-        lead_II = sig_clean[1]
-
-        # Get segments based off single lead (lead II)
-        _, info = nk.ecg_peaks(lead_II, sampling_rate=sigmeta["fs"])
-
-        eligible_peaks = [p for p in info["ECG_R_Peaks"] if p > self.seq_len // 2]
-
-        return 0
-
-
 if __name__ == "__main__":
-    ds = PtbxlSimpleSingleCycleDS()
+    ds = PtbxlSingleCycleDS()
 
     print(ds[0])
