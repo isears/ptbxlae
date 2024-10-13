@@ -18,7 +18,9 @@ class SingleCycleCachedDS(torch.utils.data.Dataset):
             index_col="ecg_id",
         )
 
-        self.patient_ids = self.metadata.patient_id.unique()
+        self.patient_ids = [
+            fname for fname in os.listdir(cache_path) if fname.isdigit()
+        ]
         self.randomness = randomness
         self.random_generator = torch.Generator().manual_seed(42)
 
@@ -28,7 +30,7 @@ class SingleCycleCachedDS(torch.utils.data.Dataset):
     def __getitem__(self, index: int):
         pid = self.patient_ids[index]
 
-        available_ecg_paths = glob.glob(f"{self.cache_path}/{pid:05d}/*")
+        available_ecg_paths = glob.glob(f"{self.cache_path}/{pid}/*")
 
         ecg_idx = torch.randint(
             low=0,
@@ -50,13 +52,13 @@ class SingleCycleCachedDS(torch.utils.data.Dataset):
             df = pd.read_parquet(f"{available_cycle_paths[cycle_idx]}")
 
         else:
-            first_ecg_dir = os.listdir(f"{self.cache_path}/{pid:04d}/")[0]
-            first_cycle_fname = os.listdir(
-                f"{self.cache_path}/{pid:04d}/{first_ecg_dir}/"
-            )[0]
+            first_ecg_dir = os.listdir(f"{self.cache_path}/{pid}/")[0]
+            first_cycle_fname = os.listdir(f"{self.cache_path}/{pid}/{first_ecg_dir}/")[
+                0
+            ]
 
             df = pd.read_parquet(
-                f"{self.cache_path}/{pid:05d}/{first_ecg_dir}/{first_cycle_fname}"
+                f"{self.cache_path}/{pid}/{first_ecg_dir}/{first_cycle_fname}"
             )
 
         return torch.Tensor(df.to_numpy().transpose()).float()

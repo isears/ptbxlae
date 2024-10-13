@@ -29,8 +29,6 @@ class PtbxlSingleCycleCachingDS(torch.utils.data.Dataset):
         pt_id = this_meta["patient_id"]
 
         cache_dir = f"./cache/singlecycle_data/{pt_id:05d}/{ecg_id:05d}"
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
 
         sig, sigmeta = load_single_record(
             ecg_id, lowres=False, root_dir=self.root_folder
@@ -48,6 +46,8 @@ class PtbxlSingleCycleCachingDS(torch.utils.data.Dataset):
 
         if len(rpeaks) == 0:
             return 0
+
+        single_cycle_data = list()
 
         for peak_idx, peak in enumerate(rpeaks):
             # Make sure we have enough signal for a full cycle
@@ -74,7 +74,15 @@ class PtbxlSingleCycleCachingDS(torch.utils.data.Dataset):
                     ],
                 )
 
-                df.to_parquet(f"{cache_dir}/cycle_{peak_idx:02d}.parquet")
+                single_cycle_data.append(df)
+
+        # Only create directory and save to disk if there is a valid peak
+        if len(single_cycle_data) > 0:
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+
+            for idx, df in enumerate(single_cycle_data):
+                df.to_parquet(f"{cache_dir}/cycle_{idx:02d}.parquet")
 
         return peak_idx
 
