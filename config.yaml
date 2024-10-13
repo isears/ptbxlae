@@ -15,4 +15,4 @@ fit:
           save_last: True
 
   model:
-    latent_dim: 25
+    latent_dim: 40

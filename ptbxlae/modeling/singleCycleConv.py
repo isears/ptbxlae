@@ -31,7 +31,7 @@ class SingleCycleConvVAE(BaseVAE):
         super(SingleCycleConvVAE, self).__init__()
 
         self.lr = lr
-
+        self.latent_dim = latent_dim
         same_padding = (kernel_size - 1) // 2
 
         assert (
