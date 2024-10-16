@@ -33,6 +33,7 @@ def objective(trial: optuna.trial.Trial) -> float:
     )
 
     dm = SingleCycleCachedDM(batch_size=batch_size)
+    es = EarlyStopping(monitor="val_loss", patience=5, mode="min")
 
     trainer = pl.Trainer(
         logger=TensorBoardLogger(save_dir="cache/optuna"),
@@ -46,7 +47,7 @@ def objective(trial: optuna.trial.Trial) -> float:
                 mode="min",
                 filename=f"{model.__class__.__name__}_{int(datetime.datetime.now().timestamp())}",
             ),
-            EarlyStopping(monitor="val_loss", patience=5),
+            es,
         ],
         gradient_clip_algorithm="norm",
         gradient_clip_val=4.0,
@@ -55,7 +56,7 @@ def objective(trial: optuna.trial.Trial) -> float:
     trainer.logger.log_hyperparams(trial.params)
     trainer.fit(model, datamodule=dm)
 
-    return trainer.callback_metrics["val_loss"].item()
+    return es.best_score.item()
 
 
 if __name__ == "__main__":
