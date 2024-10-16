@@ -16,3 +16,5 @@ fit:
 
   model:
     latent_dim: 40
+    conv_depth: 2
+    fc_depth: 2

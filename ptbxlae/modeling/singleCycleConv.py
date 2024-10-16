@@ -27,80 +27,141 @@ class SingleCycleConvVAE(BaseVAE):
         latent_dim: int = 25,
         seq_len: int = 500,
         n_channels: int = 12,
-        # depth: int = 2,
+        conv_depth: int = 2,
+        fc_depth: int = 1,
         # batchnorm: bool = False,
     ):
         super(SingleCycleConvVAE, self).__init__()
 
         self.lr = lr
         self.latent_dim = latent_dim
+        self.conv_depth = conv_depth
+        self.fc_depth = fc_depth
+        # self.batchnorm = batchnorm
+        self.padding_required = False
+        self.seq_len = seq_len
         same_padding = (kernel_size - 1) // 2
-        linear_size = (seq_len // 4) * (4 * n_channels)
 
-        assert (
-            seq_len % 4 == 0
-        ), f"{seq_len} not divisible by 4, which is required by current architecture"
+        if not (seq_len % (2**self.conv_depth) == 0):
+            self.padding_required = True
 
-        self.encoder = Sequential(
-            Conv1d(
-                in_channels=n_channels,
-                out_channels=(2 * n_channels),
-                kernel_size=kernel_size,
-                stride=2,
-                padding=same_padding,
-            ),
-            LeakyReLU(),
-            Conv1d(
-                in_channels=(2 * n_channels),
-                out_channels=(4 * n_channels),
-                kernel_size=kernel_size,
-                stride=2,
-                padding=same_padding,
-            ),
-            LeakyReLU(),
-            Flatten(start_dim=1, end_dim=-1),
+            pad_amount = (2**self.conv_depth) - (seq_len % (2**self.conv_depth))
+            self.seq_len = seq_len + pad_amount
+            self.left_pad = pad_amount // 2
+            self.right_pad = pad_amount - self.left_pad
+
+            print(
+                f"Warning: seq_len {seq_len} not divisible by 2 ** {conv_depth}, will pad up to {seq_len + pad_amount}"
+            )
+
+        linear_input_sizes = [
+            (self.seq_len // (2**self.conv_depth)) * ((2**self.conv_depth) * n_channels)
+        ]
+
+        for idx in range(0, self.fc_depth - 1):
+            next_layer_size = linear_input_sizes[-1] // 4
+
+            if next_layer_size > self.latent_dim:
+                linear_input_sizes.append(next_layer_size)
+            else:
+                linear_input_sizes.append(latent_dim)
+
+        # Build encoder
+        encoder_layers = list()
+
+        for idx in range(0, self.conv_depth):
+            in_channels = n_channels * (2**idx)
+
+            encoder_layers += [
+                Conv1d(
+                    in_channels=in_channels,
+                    out_channels=2 * in_channels,
+                    kernel_size=kernel_size,
+                    stride=2,
+                    padding=same_padding,
+                ),
+                LeakyReLU(),
+            ]
+
+        encoder_layers.append(Flatten(start_dim=1, end_dim=-1))
+
+        for idx in range(1, self.fc_depth):
+            encoder_layers += [
+                Linear(linear_input_sizes[idx - 1], linear_input_sizes[idx]),
+                LeakyReLU(),
+            ]
+
+        self.encoder = Sequential(*encoder_layers)
+
+        # Mean / logvar layers
+        self.fc_mean = Linear(
+            linear_input_sizes[-1],
+            latent_dim,
+        )
+        self.fc_logvar = Linear(
+            linear_input_sizes[-1],
+            latent_dim,
         )
 
-        self.fc_mean = Linear((seq_len // 4) * (4 * n_channels), latent_dim)
-        self.fc_logvar = Linear((seq_len // 4) * (4 * n_channels), latent_dim)
+        # Build decoder
+        decoder_layers = list()
+        decoder_layers += [Linear(latent_dim, linear_input_sizes[-1]), LeakyReLU()]
 
-        self.decoder = Sequential(
-            Linear(latent_dim, (seq_len // 4) * (4 * n_channels)),
-            Unflatten(dim=1, unflattened_size=(48, seq_len // 4)),
-            ConvTranspose1d(
-                in_channels=48,
-                out_channels=24,
-                kernel_size=kernel_size,
-                padding=same_padding,
-                stride=2,
-                output_padding=1,
+        for idx in range(self.fc_depth - 1, 0, -1):
+            decoder_layers += [
+                Linear(linear_input_sizes[idx], linear_input_sizes[idx - 1]),
+                LeakyReLU(),
+            ]
+
+        decoder_layers.append(
+            Unflatten(
+                dim=1,
+                unflattened_size=(
+                    n_channels * (2**self.conv_depth),
+                    self.seq_len // (2**self.conv_depth),
+                ),
             ),
-            LeakyReLU(),
-            ConvTranspose1d(
-                in_channels=24,
-                out_channels=12,
-                kernel_size=kernel_size,
-                padding=same_padding,
-                stride=2,
-                output_padding=1,
-            ),
-            # TODO: do we need these last two?
-            # BatchNorm1d(num_features=12),
-            # LeakyReLU(),
         )
+
+        for idx in range(self.conv_depth, 0, -1):
+            in_channels = n_channels * (2**idx)
+
+            decoder_layers += [
+                ConvTranspose1d(
+                    in_channels=in_channels,
+                    out_channels=in_channels // 2,
+                    kernel_size=kernel_size,
+                    padding=same_padding,
+                    stride=2,
+                    output_padding=1,
+                ),
+                LeakyReLU(),
+            ]
+
+        self.decoder = Sequential(*decoder_layers)
 
     def encode_mean_logvar(self, x):
+        if self.padding_required:
+            x = torch.nn.functional.pad(
+                x, pad=(self.left_pad, self.right_pad), value=0.0
+            )
+
         e = self.encoder(x)
         return self.fc_mean(e), self.fc_logvar(e)
 
     def decode(self, encoded):
-        return self.decoder(encoded)
+        reconstruction = self.decoder(encoded)
+
+        if self.padding_required:
+            reconstruction = reconstruction[:, :, self.left_pad : -self.right_pad]
+
+        return reconstruction
 
 
 if __name__ == "__main__":
     x = torch.rand((4, 12, 500))
 
-    m = SingleCycleConvVAE()
+    m = SingleCycleConvVAE(conv_depth=3, fc_depth=2, latent_dim=40)
     e = m.encoder(x)
     z = m.encode(x)
 
@@ -111,6 +172,6 @@ if __name__ == "__main__":
     print(f"Mean shape:\t {mean.shape}")
     print(f"Logvar shape:\t {logvar.shape}")
 
-    d = m.decoder(z)
+    d = m.decode(z)
 
     print(f"Decoded shape:\t {d.shape}")
