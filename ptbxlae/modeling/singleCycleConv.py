@@ -11,6 +11,7 @@ from torch.nn import (
     Sequential,
     Flatten,
     Unflatten,
+    Dropout,
 )
 
 from ptbxlae.modeling import BaseVAE
@@ -29,7 +30,8 @@ class SingleCycleConvVAE(BaseVAE):
         n_channels: int = 12,
         conv_depth: int = 2,
         fc_depth: int = 1,
-        # batchnorm: bool = False,
+        batchnorm: bool = False,
+        dropout: float = None,
     ):
         super(SingleCycleConvVAE, self).__init__()
 
@@ -37,7 +39,8 @@ class SingleCycleConvVAE(BaseVAE):
         self.latent_dim = latent_dim
         self.conv_depth = conv_depth
         self.fc_depth = fc_depth
-        # self.batchnorm = batchnorm
+        self.batchnorm = batchnorm
+        self.dropout = dropout
         self.padding_required = False
         self.seq_len = seq_len
         same_padding = (kernel_size - 1) // 2
@@ -83,6 +86,9 @@ class SingleCycleConvVAE(BaseVAE):
                 LeakyReLU(),
             ]
 
+            if self.batchnorm:
+                encoder_layers.append(BatchNorm1d(num_features=(2 * in_channels)))
+
         encoder_layers.append(Flatten(start_dim=1, end_dim=-1))
 
         for idx in range(1, self.fc_depth):
@@ -90,6 +96,9 @@ class SingleCycleConvVAE(BaseVAE):
                 Linear(linear_input_sizes[idx - 1], linear_input_sizes[idx]),
                 LeakyReLU(),
             ]
+
+            if self.dropout:
+                encoder_layers.append(Dropout(self.dropout))
 
         self.encoder = Sequential(*encoder_layers)
 
@@ -112,6 +121,9 @@ class SingleCycleConvVAE(BaseVAE):
                 Linear(linear_input_sizes[idx], linear_input_sizes[idx - 1]),
                 LeakyReLU(),
             ]
+
+            if self.dropout:
+                decoder_layers.append(Dropout(self.dropout))
 
         decoder_layers.append(
             Unflatten(
@@ -138,6 +150,9 @@ class SingleCycleConvVAE(BaseVAE):
                 LeakyReLU(),
             ]
 
+            if self.batchnorm:
+                decoder_layers.append(BatchNorm1d(num_features=in_channels // 2))
+
         self.decoder = Sequential(*decoder_layers)
 
     def encode_mean_logvar(self, x):
@@ -161,7 +176,9 @@ class SingleCycleConvVAE(BaseVAE):
 if __name__ == "__main__":
     x = torch.rand((4, 12, 500))
 
-    m = SingleCycleConvVAE(conv_depth=3, fc_depth=2, latent_dim=40)
+    m = SingleCycleConvVAE(
+        conv_depth=3, fc_depth=2, latent_dim=40, dropout=0.1, batchnorm=True
+    )
     e = m.encoder(x)
     z = m.encode(x)
 
