@@ -25,7 +25,7 @@ class SingleCycleConvVAE(BaseVAE):
         self,
         lr: float = 1e-3,
         kernel_size: int = 5,
-        latent_dim: int = 25,
+        latent_dim: int = 40,
         seq_len: int = 500,
         n_channels: int = 12,
         conv_depth: int = 2,
