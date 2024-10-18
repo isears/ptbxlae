@@ -7,7 +7,7 @@ import numpy as np
 
 
 class PtbxlDS(torch.utils.data.Dataset):
-    def __init__(self, root_folder: str = "./data", lowres=True):
+    def __init__(self, root_folder: str = "./data", lowres=False):
         super().__init__()
 
         # If not filtered already, do filtering
@@ -61,22 +61,12 @@ class PtbxlDS(torch.utils.data.Dataset):
 
 
 class PtbxlCleanDS(PtbxlDS):
-    def _clean_norm(self, sig_raw: np.ndarray, sigmeta: dict) -> np.ndarray:
+    def _clean(self, sig_raw: np.ndarray, sigmeta: dict) -> np.ndarray:
         sig_clean = np.apply_along_axis(
             nk.ecg_clean, 1, sig_raw.transpose(), sampling_rate=sigmeta["fs"]
         )
 
-        # TODO: there are probably more sophisticated methods to determine baseline
-        estimated_baseline = np.median(sig_clean)
-
-        sig_rebased = sig_clean - estimated_baseline
-
-        sig_max = sig_rebased.max()
-        sig_min = sig_rebased.min()
-
-        sig_normalized = (sig_rebased - sig_min) / (sig_max - sig_min)
-
-        return (sig_normalized - 0.5) * 2
+        return sig_clean
 
     def __getitem__(self, index: int):
         this_meta = self.metadata.iloc[index]
@@ -85,9 +75,28 @@ class PtbxlCleanDS(PtbxlDS):
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
 
-        sig_clean_norm = self._clean_norm(sig, sigmeta)
+        sig_clean = self._clean(sig, sigmeta)
 
-        return torch.Tensor(sig_clean_norm).float()
+        return torch.Tensor(sig_clean).float()
+
+
+class PtbxlSigWithRpeaksDS(PtbxlDS):
+
+    def __getitem__(self, index):
+        this_meta = self.metadata.iloc[index]
+        ecg_id = this_meta["ecg_id"]
+        sig, sigmeta = load_single_record(
+            ecg_id, lowres=self.lowres, root_dir=self.root_folder
+        )
+
+        sig_clean = np.apply_along_axis(
+            nk.ecg_clean, 1, sig.transpose(), sampling_rate=sigmeta["fs"]
+        )
+
+        # Use lead II for rpeak detection
+        info = nk.ecg_findpeaks(sig_clean[1, :], sampling_rate=sigmeta["fs"])
+
+        return torch.Tensor(sig_clean).float(), torch.Tensor(info["ECG_R_Peaks"]).int()
 
 
 class PtbxlSingleCycleDS(PtbxlCleanDS):
@@ -210,6 +219,6 @@ class PtbxlSingleCycleDS(PtbxlCleanDS):
 
 
 if __name__ == "__main__":
-    ds = PtbxlSingleCycleDS()
+    ds = PtbxlSigWithRpeaksDS(lowres=False)
 
     print(ds[0])

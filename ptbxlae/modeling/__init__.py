@@ -20,6 +20,14 @@ class BaseVAE(L.LightningModule, ABC):
     def decode(self, encoded: torch.Tensor) -> torch.Tensor:
         pass
 
+    def generate(self, latent: torch.Tensor, smoothing_iterations: int = 10):
+        return torch.mean(
+            torch.stack(
+                [self.decode(latent) for idx in range(0, smoothing_iterations)]
+            ),
+            dim=0,
+        )
+
     def _reparameterization(self, z_mean, z_logvar):
         batch, dim = z_mean.shape
         epsilon = Normal(0, 1).sample((batch, dim)).to(z_mean.device)

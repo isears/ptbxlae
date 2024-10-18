@@ -15,8 +15,8 @@ fit:
           save_last: True
 
   model:
-    latent_dim: 40
+    latent_dim: 200
     conv_depth: 2
-    fc_depth: 2
-    dropout: 0.1
-    batchnorm: True
+    fc_depth: 1
+    dropout: null
+    batchnorm: False
