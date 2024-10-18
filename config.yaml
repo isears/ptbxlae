@@ -15,8 +15,14 @@ fit:
           save_last: True
 
   model:
-    latent_dim: 200
-    conv_depth: 2
-    fc_depth: 1
-    dropout: null
-    batchnorm: False
+    class_path: ptbxlae.modeling.singleCycleConv.SingleCycleConvVAE
+    init_args:
+      latent_dim: 40
+      conv_depth: 2
+      fc_depth: 1
+      dropout: null
+      batchnorm: False
+  data:
+    class_path: ptbxlae.dataprocessing.dataModules.SingleCycleCachedDM
+    init_args:
+      batch_size: 32

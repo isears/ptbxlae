@@ -1,11 +1,12 @@
-from ptbxlae.modeling.singleCycleConv import SingleCycleConvVAE
-from ptbxlae.modeling.multiCycleConv import MultiCycleConv
+from ptbxlae.modeling import BaseVAE
 from lightning.pytorch.cli import LightningCLI
-from ptbxlae.dataprocessing.dataModules import PtbxlCleanDM
+from ptbxlae.dataprocessing.dataModules import BaseDM
 
 
 def cli_main():
-    cli = LightningCLI(MultiCycleConv, PtbxlCleanDM)
+    cli = LightningCLI(
+        BaseVAE, BaseDM, subclass_mode_data=True, subclass_mode_model=True
+    )
 
 
 if __name__ == "__main__":
