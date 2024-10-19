@@ -82,6 +82,11 @@ class PtbxlCleanDS(PtbxlDS):
 
 class PtbxlSigWithRpeaksDS(PtbxlDS):
 
+    def __init__(self, root_folder="./data", lowres=False, smoothing=False):
+        super().__init__(root_folder, lowres)
+
+        self.smoothing = smoothing
+
     def __getitem__(self, index):
         this_meta = self.metadata.iloc[index]
         ecg_id = this_meta["ecg_id"]
@@ -93,10 +98,22 @@ class PtbxlSigWithRpeaksDS(PtbxlDS):
             nk.ecg_clean, 1, sig.transpose(), sampling_rate=sigmeta["fs"]
         )
 
-        # Use lead II for rpeak detection
-        info = nk.ecg_findpeaks(sig_clean[1, :], sampling_rate=sigmeta["fs"])
+        def get_rpeaks_binary(sig_in):
+            info = nk.ecg_findpeaks(sig_in, sampling_rate=sigmeta["fs"])
+            rpeaks = np.zeros_like(sig_clean[0, :])
+            rpeaks[info["ECG_R_Peaks"]] = 1
 
-        return torch.Tensor(sig_clean).float(), torch.Tensor(info["ECG_R_Peaks"]).int()
+            return rpeaks
+
+        rpeaks_all_channels = np.apply_along_axis(get_rpeaks_binary, 1, sig_clean)
+
+        if self.smoothing:
+            raise NotImplementedError()
+
+        return (
+            torch.Tensor(sig_clean).float(),
+            torch.Tensor(rpeaks_all_channels).float(),
+        )
 
 
 class PtbxlSingleCycleDS(PtbxlCleanDS):

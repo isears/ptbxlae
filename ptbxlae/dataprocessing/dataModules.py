@@ -1,7 +1,12 @@
 import lightning as L
 from torch.utils.data import DataLoader, random_split
 import torch
-from ptbxlae.dataprocessing.ptbxlDS import PtbxlDS, PtbxlCleanDS, PtbxlSingleCycleDS
+from ptbxlae.dataprocessing.ptbxlDS import (
+    PtbxlDS,
+    PtbxlCleanDS,
+    PtbxlSingleCycleDS,
+    PtbxlSigWithRpeaksDS,
+)
 from ptbxlae.dataprocessing.cachedDS import SingleCycleCachedDS
 
 
@@ -58,6 +63,11 @@ class SingleCycleCachedDM(BaseDM):
 
     def _get_ds(self):
         return SingleCycleCachedDS(cache_path=self.cache_folder)
+
+
+class PtbxlSigWithRpeaksDM(BaseDM):
+    def _get_ds(self):
+        return PtbxlSigWithRpeaksDS(root_folder=self.root_folder)
 
 
 def load_testset_to_mem(root_folder: str = "./data"):

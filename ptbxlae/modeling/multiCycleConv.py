@@ -173,6 +173,30 @@ class MultiCycleConv(BaseVAE):
         return reconstruction
 
 
+# TODO: make this non-variational autoencoder, simplify decoder, take out fc_mean / fc_logvar and replace with a simple linear layer
+class RpeakVAE(MultiCycleConv):
+
+    def decode(self, encoded):
+        return torch.nn.functional.sigmoid(super().decode(encoded))
+
+    def forward(self, x):
+        sig, rpeaks = x
+        mean, logvar = self.encode_mean_logvar(sig)
+        z = self._reparameterization(mean, logvar)
+        reconstruction = self.decode(z)
+
+        loss = self._loss_fn(rpeaks, reconstruction, mean, logvar)
+
+        return loss
+
+    def _loss_fn(self, x, reconstruction, mean, logvar):
+        reproduction_loss = torch.nn.functional.binary_cross_entropy(reconstruction, x)
+        # KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+
+        # return reproduction_loss + KLD
+        return reproduction_loss
+
+
 if __name__ == "__main__":
     x = torch.rand((4, 12, 5000))
 

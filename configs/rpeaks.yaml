@@ -1,7 +1,7 @@
 
 fit:
   trainer:
-    max_epochs: 100
+    max_epochs: 500
     gradient_clip_val: 4.0
     gradient_clip_algorithm: "norm"
     callbacks:
@@ -15,16 +15,16 @@ fit:
           save_last: True
 
   model:
-    class_path: ptbxlae.modeling.multiCycleConv.MultiCycleConv
+    class_path: ptbxlae.modeling.multiCycleConv.RpeakVAE
     init_args:
-      latent_dim: 500
+      latent_dim: 10
       conv_depth: 2
       fc_depth: 1
       kernel_size: 7
       dropout: null
       batchnorm: False
-      lr: 1e-4
+      lr: 1e-3
   data:
-    class_path: ptbxlae.dataprocessing.dataModules.PtbxlCleanDM
+    class_path: ptbxlae.dataprocessing.dataModules.PtbxlSigWithRpeaksDM
     init_args:
-      batch_size: 8
+      batch_size: 32
