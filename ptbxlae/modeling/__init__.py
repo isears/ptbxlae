@@ -35,7 +35,7 @@ class BaseVAE(L.LightningModule, ABC):
 
     def _loss_fn(self, x, reconstruction, mean, logvar):
         reproduction_loss = torch.nn.functional.mse_loss(
-            reconstruction, x, reduction="sum"
+            reconstruction, x, reduction="mean"
         )
         KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
 

@@ -98,21 +98,25 @@ class PtbxlSigWithRpeaksDS(PtbxlDS):
             nk.ecg_clean, 1, sig.transpose(), sampling_rate=sigmeta["fs"]
         )
 
-        def get_rpeaks_binary(sig_in):
-            info = nk.ecg_findpeaks(sig_in, sampling_rate=sigmeta["fs"])
-            rpeaks = np.zeros_like(sig_clean[0, :])
-            rpeaks[info["ECG_R_Peaks"]] = 1
+        # def get_rpeaks_binary(sig_in):
+        #     info = nk.ecg_findpeaks(sig_in, sampling_rate=sigmeta["fs"])
+        #     rpeaks = np.zeros_like(sig_clean[0, :])
+        #     rpeaks[info["ECG_R_Peaks"]] = 1
 
-            return rpeaks
+        #     return rpeaks
 
-        rpeaks_all_channels = np.apply_along_axis(get_rpeaks_binary, 1, sig_clean)
+        # rpeaks_all_channels = np.apply_along_axis(get_rpeaks_binary, 1, sig_clean)
+
+        info = nk.ecg_findpeaks(sig_clean[1], sampling_rate=sigmeta["fs"])
+        rpeaks = np.zeros_like(sig_clean[1, :])
+        rpeaks[info["ECG_R_Peaks"]] = 1
 
         if self.smoothing:
             raise NotImplementedError()
 
         return (
             torch.Tensor(sig_clean).float(),
-            torch.Tensor(rpeaks_all_channels).float(),
+            torch.Tensor(rpeaks).float(),
         )
 
 

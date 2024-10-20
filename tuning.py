@@ -1,5 +1,5 @@
 import optuna
-from ptbxlae.modeling.singleCycleConv import SingleCycleConvVAE
+from ptbxlae.modeling.convolutionalVAE import ConvolutionalEcgVAE
 from ptbxlae.dataprocessing.dataModules import SingleCycleCachedDM
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
@@ -23,7 +23,7 @@ def objective(trial: optuna.trial.Trial) -> float:
     else:
         dropout = None
 
-    model = SingleCycleConvVAE(
+    model = ConvolutionalEcgVAE(
         lr=lr,
         kernel_size=kernel_size,
         conv_depth=conv_depth,
@@ -45,7 +45,7 @@ def objective(trial: optuna.trial.Trial) -> float:
                 save_top_k=1,
                 monitor="val_loss",
                 mode="min",
-                filename=f"{model.__class__.__name__}_{int(datetime.datetime.now().timestamp())}",
+                filename=f"{model.__class__.__name__}_{trial.number}",
             ),
             es,
         ],

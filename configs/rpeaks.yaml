@@ -11,18 +11,18 @@ fit:
           monitor: val_loss
       - class_path: lightning.pytorch.callbacks.ModelCheckpoint
         init_args:
+          save_top_k: 1
+          monitor: val_loss
+          mode: min
           dirpath: ./cache/savedmodels/
-          save_last: True
+          filename: rpeaks-{epoch:03d}-{val_loss:.6f}
 
   model:
-    class_path: ptbxlae.modeling.multiCycleConv.RpeakVAE
+    class_path: ptbxlae.modeling.convolutionalVAE.RpeakAE
     init_args:
-      latent_dim: 10
       conv_depth: 2
       fc_depth: 1
       kernel_size: 7
-      dropout: null
-      batchnorm: False
       lr: 1e-3
   data:
     class_path: ptbxlae.dataprocessing.dataModules.PtbxlSigWithRpeaksDM

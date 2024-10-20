@@ -12,11 +12,14 @@ fit:
           monitor: val_loss
       - class_path: lightning.pytorch.callbacks.ModelCheckpoint
         init_args:
+          save_top_k: 1
+          monitor: val_loss
+          mode: min
           dirpath: ./cache/savedmodels/
-          save_last: True
+          filename: scc-{epoch:03d}-{val_loss:.6f}
 
   model:
-    class_path: ptbxlae.modeling.singleCycleConv.SingleCycleConvVAE
+    class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
     init_args:
       latent_dim: 40
       conv_depth: 2
