@@ -75,17 +75,17 @@ class PtbxlSigWithRpeaksDM(BaseDM):
 
 class PtbxlSmallSigDM(BaseDM):
     def __init__(
-        self, root_folder="./data", batch_size=32, seq_len=500, channel_indices=None
+        self, root_folder="./data", batch_size=32, seq_len=500, single_channel=False
     ):
         super().__init__(root_folder, batch_size)
         self.seq_len = seq_len
-        self.channel_indices = channel_indices
+        self.single_channel = single_channel
 
     def _get_ds(self):
         return PtbxlSmallSig(
             root_folder=self.root_folder,
             seq_len=self.seq_len,
-            channel_indices=self.channel_indices,
+            single_channel=self.single_channel,
         )
 
 

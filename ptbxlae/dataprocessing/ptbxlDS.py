@@ -137,7 +137,7 @@ class PtbxlSigWithRpeaksDS(PtbxlDS):
 class PtbxlSmallSig(PtbxlCleanDS):
 
     def __init__(
-        self, root_folder="./data", seq_len: int = None, channel_indices: list = None
+        self, root_folder="./data", seq_len: int = None, single_channel: bool = False
     ):
         super().__init__(root_folder, lowres=True)
 
@@ -147,7 +147,7 @@ class PtbxlSmallSig(PtbxlCleanDS):
             )
 
         self.seq_len = seq_len
-        self.channel_indices = channel_indices
+        self.single_channel = single_channel
 
     def __getitem__(self, index):
         sig = super().__getitem__(index)
@@ -157,8 +157,8 @@ class PtbxlSmallSig(PtbxlCleanDS):
         if self.seq_len:
             smallsig = smallsig[:, 0 : self.seq_len]
 
-        if self.channel_indices:
-            smallsig = smallsig[self.channel_indices, :]
+        if self.single_channel:
+            smallsig = smallsig[1, :]
 
         return smallsig
 
