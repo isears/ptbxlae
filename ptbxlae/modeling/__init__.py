@@ -70,3 +70,11 @@ class BaseVAE(L.LightningModule, ABC):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         return optimizer
+
+    # For use with autolr feature that never really worked
+    # def on_fit_start(self):
+    #     if self.lr:
+    #         # Overwrite learning rate after running LearningRateFinder
+    #         for optimizer in self.trainer.optimizers:
+    #             for param_group in optimizer.param_groups:
+    #                 param_group["lr"] = self.lr
