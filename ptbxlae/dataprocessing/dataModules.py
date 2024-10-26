@@ -1,13 +1,8 @@
 import lightning as L
 from torch.utils.data import DataLoader, random_split
 import torch
-from ptbxlae.dataprocessing.ptbxlDS import (
-    PtbxlDS,
-    PtbxlCleanDS,
-    PtbxlSingleCycleDS,
-    PtbxlSigWithRpeaksDS,
-)
-from ptbxlae.dataprocessing.cachedDS import SingleCycleCachedDS
+from ptbxlae.dataprocessing.ptbxlDS import *
+from ptbxlae.dataprocessing.cachedDS import *
 
 
 class BaseDM(L.LightningDataModule):
@@ -48,11 +43,6 @@ class PtbxlCleanDM(BaseDM):
         return PtbxlCleanDS(root_folder=self.root_folder, lowres=False)
 
 
-class PtbxlSingleCycleDM(BaseDM):
-    def _get_ds(self):
-        return PtbxlSingleCycleDS(root_folder=self.root_folder)
-
-
 class SingleCycleCachedDM(BaseDM):
     def __init__(
         self, cache_folder: str = "./cache/singlecycle_data", batch_size: int = 32
@@ -80,6 +70,22 @@ class PtbxlSigWithRpeaksDM(BaseDM):
     def _get_ds(self):
         return PtbxlSigWithRpeaksDS(
             root_folder=self.root_folder, smoothing=self.smoothing, stacked=self.stacked
+        )
+
+
+class PtbxlSmallSigDM(BaseDM):
+    def __init__(
+        self, root_folder="./data", batch_size=32, seq_len=500, channel_indices=None
+    ):
+        super().__init__(root_folder, batch_size)
+        self.seq_len = seq_len
+        self.channel_indices = channel_indices
+
+    def _get_ds(self):
+        return PtbxlSmallSig(
+            root_folder=self.root_folder,
+            seq_len=self.seq_len,
+            channel_indices=self.channel_indices,
         )
 
 
