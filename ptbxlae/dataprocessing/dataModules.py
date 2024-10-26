@@ -66,8 +66,21 @@ class SingleCycleCachedDM(BaseDM):
 
 
 class PtbxlSigWithRpeaksDM(BaseDM):
+    def __init__(
+        self,
+        root_folder: str = "./data",
+        batch_size: int = 32,
+        smoothing=False,
+        stacked=False,
+    ):
+        super().__init__(root_folder, batch_size)
+        self.smoothing = smoothing
+        self.stacked = stacked
+
     def _get_ds(self):
-        return PtbxlSigWithRpeaksDS(root_folder=self.root_folder)
+        return PtbxlSigWithRpeaksDS(
+            root_folder=self.root_folder, smoothing=self.smoothing, stacked=self.stacked
+        )
 
 
 def load_testset_to_mem(root_folder: str = "./data"):

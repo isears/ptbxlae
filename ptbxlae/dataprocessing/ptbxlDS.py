@@ -82,9 +82,12 @@ class PtbxlCleanDS(PtbxlDS):
 
 class PtbxlSigWithRpeaksDS(PtbxlDS):
 
-    def __init__(self, root_folder="./data", lowres=False, smoothing=False):
+    def __init__(
+        self, root_folder="./data", lowres=False, smoothing=False, stacked=False
+    ):
         super().__init__(root_folder, lowres)
 
+        self.stacked = stacked
         self.smoothing = smoothing
 
     def __getitem__(self, index):
@@ -114,10 +117,21 @@ class PtbxlSigWithRpeaksDS(PtbxlDS):
         if self.smoothing:
             raise NotImplementedError()
 
-        return (
-            torch.Tensor(sig_clean).float(),
-            torch.Tensor(rpeaks).float(),
-        )
+        if self.stacked:
+            return torch.concat(
+                (
+                    torch.Tensor(sig_clean[1, :]).unsqueeze(dim=0).float(),
+                    torch.Tensor(rpeaks).unsqueeze(dim=0).float(),
+                ),
+                dim=0,
+            )
+
+        else:
+
+            return (
+                torch.Tensor(sig_clean).float(),
+                torch.Tensor(rpeaks).float(),
+            )
 
 
 class PtbxlSingleCycleDS(PtbxlCleanDS):
