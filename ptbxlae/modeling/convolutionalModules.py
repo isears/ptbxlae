@@ -17,6 +17,15 @@ from torchinfo import summary
 from dataclasses import dataclass
 
 
+# For debugging sequentials
+def print_sizes(model, input_tensor):
+    output = input_tensor
+    for m in model.children():
+        output = m(output)
+        print(m, output.shape)
+    return output
+
+
 @dataclass
 class ConvolutionalEcgEncoderDecoderSharedParams:
     """
@@ -35,7 +44,21 @@ class ConvolutionalEcgEncoderDecoderSharedParams:
     fc_scale_factor: int
 
     def __post_init__(self):
-        self.same_padding = (self.kernel_size - 1) // 2
+        self.input_padding_required = False
+
+        if not (self.seq_len % (2**self.conv_depth) == 0):
+            self.input_padding_required = True
+            pad_amount = (2**self.conv_depth) - (self.seq_len % (2**self.conv_depth))
+
+            print(
+                f"Warning: seq_len {self.seq_len} not divisible by 2 ** {self.conv_depth}, will pad up to {self.seq_len + pad_amount}"
+            )
+
+            self.seq_len = self.seq_len + pad_amount
+            self.left_pad = pad_amount // 2
+            self.right_pad = pad_amount - self.left_pad
+
+        self.layer_padding = (self.kernel_size - 1) // 2
 
         self.linear_input_sizes = [
             (self.seq_len // (2**self.conv_depth))
@@ -61,7 +84,7 @@ class ConvolutionalEcgEncoderDecoderSharedParams:
         )
 
     def get_conv_padding(self) -> int:
-        return self.same_padding
+        return self.layer_padding
 
 
 class ConvolutionalEcgEncoder(torch.nn.Module):
@@ -81,6 +104,7 @@ class ConvolutionalEcgEncoder(torch.nn.Module):
 
         layers = list()
 
+        # Build Conv layers
         for idx in range(0, self.architecture_params.conv_depth):
             in_channels = shared_params.n_channels * (2**idx)
 
@@ -100,6 +124,7 @@ class ConvolutionalEcgEncoder(torch.nn.Module):
 
         layers.append(Flatten(start_dim=1, end_dim=-1))
 
+        # Build FC layers
         for idx in range(1, self.architecture_params.fc_depth):
             layers += [
                 self.architecture_params.build_tapered_encoding_fc_layer(idx),
@@ -120,6 +145,16 @@ class ConvolutionalEcgEncoder(torch.nn.Module):
         self.net = Sequential(*layers)
 
     def forward(self, x):
+        if self.architecture_params.input_padding_required:
+            x = torch.nn.functional.pad(
+                x,
+                pad=(
+                    self.architecture_params.left_pad,
+                    self.architecture_params.right_pad,
+                ),
+                value=0.0,
+            )
+
         return self.net(x)
 
 
@@ -190,37 +225,44 @@ class ConvolutionalEcgDecoder(torch.nn.Module):
         self.net = Sequential(*layers)
 
     def forward(self, x):
-        return self.net(x)
+        out = self.net(x)
+
+        if self.architecture_params.input_padding_required:
+            return out[
+                :,
+                :,
+                self.architecture_params.left_pad : -self.architecture_params.right_pad,
+            ]
+        else:
+            return out
 
 
 if __name__ == "__main__":
 
+    sp = ConvolutionalEcgEncoderDecoderSharedParams(
+        seq_len=1000,
+        n_channels=12,
+        kernel_size=7,
+        conv_depth=5,
+        fc_depth=3,
+        latent_dim=100,
+        fc_scale_factor=4,
+    )
+
     encoder = ConvolutionalEcgEncoder(
-        seq_len=500,
-        n_channels=12,
-        kernel_size=5,
-        conv_depth=2,
-        fc_depth=2,
-        latent_dim=40,
+        shared_params=sp,
         include_final_layer=True,
-    )
+    ).to("cuda")
 
-    decoder = ConvolutionalEcgDecoder(
-        seq_len=500,
-        n_channels=12,
-        kernel_size=5,
-        conv_depth=2,
-        fc_depth=2,
-        latent_dim=40,
-    )
+    decoder = ConvolutionalEcgDecoder(shared_params=sp).to("cuda")
 
-    summary(encoder, input_size=(100, 12, 500))
+    summary(encoder, input_size=(8, 12, 1000))
 
     print()
 
-    summary(decoder, input_size=(100, 40))
+    summary(decoder, input_size=(8, 100))
 
-    x = torch.randn((100, 12, 500)).to("cuda")
+    x = torch.randn((100, 12, 1000)).to("cuda")
     print(f"X:\t\t{x.shape}")
     e = encoder(x)
     print(f"E:\t\t{e.shape}")

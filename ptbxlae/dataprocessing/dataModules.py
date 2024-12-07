@@ -3,13 +3,15 @@ from torch.utils.data import DataLoader, random_split
 import torch
 from ptbxlae.dataprocessing.ptbxlDS import *
 from ptbxlae.dataprocessing.cachedDS import *
+from ptbxlae.dataprocessing.nkSyntheticDS import *
 
 
 class BaseDM(L.LightningDataModule):
-    def __init__(self, root_folder: str = "./data", batch_size: int = 32):
+    def __init__(self, root_folder: str = "./data", batch_size: int = 32, **kwargs):
         super().__init__()
         self.root_folder = root_folder
         self.batch_size = batch_size
+        self.kwargs = kwargs
 
     def _get_ds(self):
         raise NotImplementedError(
@@ -87,6 +89,12 @@ class PtbxlSmallSigDM(BaseDM):
             seq_len=self.seq_len,
             single_channel=self.single_channel,
         )
+
+
+class SyntheticDM(BaseDM):
+
+    def _get_ds(self):
+        return NkSyntheticDS(**self.kwargs)
 
 
 def load_testset_to_mem(root_folder: str = "./data"):

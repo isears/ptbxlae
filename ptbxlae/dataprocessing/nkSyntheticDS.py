@@ -6,13 +6,13 @@ class NkSyntheticDS(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        examples_per_epoch: int = 1e6,
+        examples_per_epoch: float = 1e6,
         duration_s: int = 10,
         sampling_rate_hz: int = 100,
     ):
         super().__init__()
 
-        self.examples_per_epoch = examples_per_epoch
+        self.examples_per_epoch = int(examples_per_epoch)
         self.generator = torch.Generator().manual_seed(0)
         self.seq_len = duration_s * sampling_rate_hz
         self.duration_s = duration_s
@@ -34,7 +34,7 @@ class NkSyntheticDS(torch.utils.data.Dataset):
         ecg = nk.ecg_simulate(
             duration=self.duration_s * 2,
             sampling_rate=self.sampling_rate_hz,
-            noise=self.random_uniform(0, 1),
+            noise=self.random_uniform(0, 0.5),
             # https://pmc.ncbi.nlm.nih.gov/articles/PMC11137473
             heart_rate=self.random_normal(74.5, 8.5),
             heart_rate_std=self.random_normal(1, 0.1),
@@ -45,8 +45,8 @@ class NkSyntheticDS(torch.utils.data.Dataset):
         # TODO: need to call nk.clean() here?
 
         # TODO: need to do random sliding window so that sequence doesn't always start on rpeak
-        random_start = self.random_uniform(0, ecg.shape[-1] - 1)
-        ecg = ecg[random_start : (ecg.shape[-1] // 2) - random_start]
+        random_start = int(self.random_uniform(0, ecg.shape[-1] // 2))
+        ecg = ecg[random_start : (ecg.shape[-1] // 2) + random_start]
 
         return torch.Tensor(ecg.to_numpy().transpose())
 
@@ -57,7 +57,7 @@ class SinglechannelSyntheticDS(NkSyntheticDS):
         ecg = nk.ecg_simulate(
             duration=self.duration_s * 2,
             sampling_rate=self.sampling_rate_hz,
-            noise=self.random_uniform(0, 1),
+            noise=self.random_uniform(0, 0.5),
             # https://pmc.ncbi.nlm.nih.gov/articles/PMC11137473
             heart_rate=self.random_normal(74.5, 8.5),
             heart_rate_std=self.random_normal(1, 0.1),

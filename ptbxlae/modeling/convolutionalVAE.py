@@ -29,20 +29,7 @@ class ConvolutionalEcgVAE(BaseVAE):
         super(ConvolutionalEcgVAE, self).__init__()
 
         self.lr = lr
-        self.padding_required = False
         self.seq_len = seq_len
-
-        if not (seq_len % (2**conv_depth) == 0):
-            self.padding_required = True
-
-            pad_amount = (2**conv_depth) - (seq_len % (2**conv_depth))
-            self.seq_len = seq_len + pad_amount
-            self.left_pad = pad_amount // 2
-            self.right_pad = pad_amount - self.left_pad
-
-            print(
-                f"Warning: seq_len {seq_len} not divisible by 2 ** {conv_depth}, will pad up to {seq_len + pad_amount}"
-            )
 
         shared_params = ConvolutionalEcgEncoderDecoderSharedParams(
             seq_len,
@@ -54,11 +41,7 @@ class ConvolutionalEcgVAE(BaseVAE):
             fc_scale_factor,
         )
 
-        self.encoder = ConvolutionalEcgEncoder(
-            shared_params,
-            batchnorm,
-            dropout,
-        )
+        self.encoder = ConvolutionalEcgEncoder(shared_params, batchnorm, dropout)
 
         self.decoder = ConvolutionalEcgDecoder(
             shared_params,
@@ -77,36 +60,31 @@ class ConvolutionalEcgVAE(BaseVAE):
         )
 
     def encode_mean_logvar(self, x):
-        if self.padding_required:
-            x = torch.nn.functional.pad(
-                x, pad=(self.left_pad, self.right_pad), value=0.0
-            )
-
         e = self.encoder(x)
         return self.fc_mean(e), self.fc_logvar(e)
 
     def decode(self, encoded):
-        reconstruction = self.decoder(encoded)
-
-        if self.padding_required:
-            reconstruction = reconstruction[:, :, self.left_pad : -self.right_pad]
-
-        return reconstruction
+        return self.decoder(encoded)
 
 
 if __name__ == "__main__":
-    x = torch.rand((4, 12, 500))
+    x = torch.rand((8, 12, 1000))
 
     m = ConvolutionalEcgVAE(
-        conv_depth=3, fc_depth=2, latent_dim=40, dropout=0.1, batchnorm=True
+        seq_len=1000,
+        conv_depth=2,
+        fc_depth=2,
+        kernel_size=7,
+        latent_dim=100,
+        dropout=0.1,
+        batchnorm=True,
     )
     e = m.encoder(x)
+    print(f"Encoder shape:\t {e.shape}")
     z = m.encode(x)
+    print(f"Encoded shape:\t {z.shape}")
 
     mean, logvar = m.encode_mean_logvar(x)
-
-    print(f"Encoder shape:\t {e.shape}")
-    print(f"Encoded shape:\t {z.shape}")
     print(f"Mean shape:\t {mean.shape}")
     print(f"Logvar shape:\t {logvar.shape}")
 
