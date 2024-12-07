@@ -46,7 +46,7 @@ class NkSyntheticDS(torch.utils.data.Dataset):
 
         # TODO: need to do random sliding window so that sequence doesn't always start on rpeak
         random_start = int(self.random_uniform(0, ecg.shape[-1] // 2))
-        ecg = ecg[random_start : (ecg.shape[-1] // 2) + random_start]
+        ecg = ecg[random_start : (ecg.shape[0] // 2) + random_start]
 
         return torch.Tensor(ecg.to_numpy().transpose())
 
@@ -76,7 +76,7 @@ class SinglechannelSyntheticDS(NkSyntheticDS):
 
 
 if __name__ == "__main__":
-    ds = SinglechannelSyntheticDS()
+    ds = NkSyntheticDS()
 
     example = ds[0]
 

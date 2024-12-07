@@ -15,7 +15,7 @@ fit:
           monitor: val_loss
           mode: min
           dirpath: ./cache/savedmodels/
-          filename: scc-{epoch:03d}-{val_loss:.6f}
+          filename: synthetic-{epoch:03d}-{val_loss:.6f}
 
   model:
     class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
@@ -32,4 +32,5 @@ fit:
   data:
     class_path: ptbxlae.dataprocessing.dataModules.SyntheticDM
     init_args:
-      batch_size: 8
+      batch_size: 128
+      examples_per_epoch: 12800
