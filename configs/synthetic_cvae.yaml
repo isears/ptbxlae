@@ -1,7 +1,6 @@
-# Best params from 24-hr optuna run, sum reduction validation loss 345.5687561035156
 fit:
   trainer:
-    max_epochs: 100
+    max_epochs: 1000
     gradient_clip_val: 4.0
     gradient_clip_algorithm: "norm"
     callbacks:
@@ -21,8 +20,8 @@ fit:
     class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
     init_args:
       latent_dim: 100
-      conv_depth: 5
-      fc_depth: 3
+      conv_depth: 3
+      fc_depth: 2
       kernel_size: 7
       dropout: null
       batchnorm: False
@@ -32,5 +31,5 @@ fit:
   data:
     class_path: ptbxlae.dataprocessing.dataModules.SyntheticDM
     init_args:
-      batch_size: 128
-      examples_per_epoch: 12800
+      batch_size: 32
+      examples_per_epoch: 3200

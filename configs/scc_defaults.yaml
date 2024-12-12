@@ -15,7 +15,7 @@ fit:
           save_last: True
 
   model:
-    class_path: ptbxlae.modeling.singleCycleConv.SingleCycleConvVAE
+    class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
     init_args:
       latent_dim: 40
       conv_depth: 2
