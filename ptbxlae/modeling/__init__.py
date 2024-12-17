@@ -34,6 +34,7 @@ class BaseVAE(L.LightningModule, ABC):
         return z_mean + torch.exp(0.5 * z_logvar) * epsilon
 
     def _loss_fn(self, x, reconstruction, mean, logvar):
+        # NOTE: the loss reduction for variational autoencoder must be sum
         reproduction_loss = torch.nn.functional.mse_loss(
             reconstruction, x, reduction="sum"
         )
