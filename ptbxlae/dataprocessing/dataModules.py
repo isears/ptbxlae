@@ -12,6 +12,9 @@ class BaseDM(L.LightningDataModule):
         self.root_folder = root_folder
         self.batch_size = batch_size
         self.kwargs = kwargs
+        self.cores_available = len(os.sched_getaffinity(0))
+
+        print(f"Initializing DM with {self.cores_available} workers")
 
     def _get_ds(self):
         raise NotImplementedError(
@@ -26,13 +29,13 @@ class BaseDM(L.LightningDataModule):
         )
 
     def train_dataloader(self):
-        return DataLoader(self.train_ds, num_workers=16, batch_size=self.batch_size)
+        return DataLoader(self.train_ds, num_workers=self.cores_available, batch_size=self.batch_size)
 
     def val_dataloader(self):
-        return DataLoader(self.valid_ds, num_workers=16, batch_size=self.batch_size)
+        return DataLoader(self.valid_ds, num_workers=self.cores_available, batch_size=self.batch_size)
 
     def test_dataloader(self):
-        return DataLoader(self.test_ds, num_workers=16, batch_size=self.batch_size)
+        return DataLoader(self.test_ds, num_workers=self.cores_available, batch_size=self.batch_size)
 
 
 class PtbxlDM(BaseDM):
