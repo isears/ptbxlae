@@ -1,5 +1,6 @@
 import torch
 import neurokit2 as nk
+import numpy as np
 
 
 class NkSyntheticDS(torch.utils.data.Dataset):
@@ -42,13 +43,17 @@ class NkSyntheticDS(torch.utils.data.Dataset):
             random_state=42,
         )
 
-        # TODO: need to call nk.clean() here?
+        ecg_clean = np.apply_along_axis(
+            nk.ecg_clean, 1, ecg.transpose(), sampling_rate=self.sampling_rate_hz
+        )
 
-        # TODO: need to do random sliding window so that sequence doesn't always start on rpeak
-        random_start = int(self.random_uniform(0, ecg.shape[-1] // 2))
-        ecg = ecg[random_start : (ecg.shape[0] // 2) + random_start]
+        # Need to do random sliding window so that sequence doesn't always start on rpeak
+        random_start = int(self.random_uniform(0, ecg_clean.shape[1] // 2))
+        ecg_clean = ecg_clean[
+            :, random_start : (ecg_clean.shape[1] // 2) + random_start
+        ]
 
-        return torch.Tensor(ecg.to_numpy().transpose())
+        return torch.Tensor(ecg_clean)
 
 
 class SinglechannelSyntheticDS(NkSyntheticDS):
@@ -65,9 +70,13 @@ class SinglechannelSyntheticDS(NkSyntheticDS):
             random_state=42,
         )
 
-        # TODO: need to call nk.clean() here?
+        # TODO: changes were added to multichannel dataset without being added here too
+        # If end up using this, need to model after multichannel __getitem__ method
+        ecg_clean = np.apply_along_axis(
+            nk.ecg_clean, 1, ecg.transpose(), sampling_rate=self.sampling_rate_hz
+        )
 
-        # TODO: need to do random sliding window so that sequence doesn't always start on rpeak
+        # Need to do random sliding window so that sequence doesn't always start on rpeak
         random_start = int(self.random_uniform(0, ecg.shape[-1] // 2))
         ecg = ecg[random_start : (ecg.shape[-1] // 2) + random_start]
         assert ecg.shape[-1] > 10, f"{random_start}"
