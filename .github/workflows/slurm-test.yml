@@ -1,0 +1,12 @@
+name: Slurm Test
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on: [push]
+jobs:
+  Explore-GitHub-Actions:
+    runs-on: self-hosted
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - run: cd /oscar/home/isears1/Repos/ptbxlae
+      - run: ls -lah ./
+      - run: echo "🍏 This job's status is ${{ job.status }}."
