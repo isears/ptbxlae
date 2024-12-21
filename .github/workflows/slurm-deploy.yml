@@ -1,6 +1,9 @@
 name: Slurm Deploy
 run-name: ${{ github.actor }} is running a job on oscar
-on: [push]
+on:
+  push:
+    branches:
+      - 'push-to-slurm'
 jobs:
   Slurm-Deploy:
     runs-on: self-hosted
