@@ -1,6 +1,6 @@
 fit:
   trainer:
-    max_epochs: 1000
+    max_time: 00:47:00:00
     gradient_clip_val: 4.0
     gradient_clip_algorithm: "norm"
     logger:

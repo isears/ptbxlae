@@ -18,7 +18,6 @@ jobs:
         run: |
           cd /oscar/home/isears1/Repos/ptbxlae
           export PYTHONUNBUFFERED=TRUE
-          ls -lah ./
           rm -f .neptune/config.yaml
           conda activate ptbxlae
           echo $CONDA_DEFAULT_ENV
@@ -30,5 +29,5 @@ jobs:
             --gres=gpu:1 \
             --cpus-per-task=48 \
             --mem=32G \
-            --time=00:10:00 \
-            python main.py --config configs/synthetic_cvae.yaml fit
+            --time=48:00:00 \
+            python main.py --config configs/synthetic_cvae.yaml fit --trainer.enable_progress_bar=false
