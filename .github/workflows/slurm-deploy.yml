@@ -5,13 +5,19 @@ jobs:
   Slurm-Deploy:
     runs-on: self-hosted
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: cd /oscar/home/isears1/Repos/ptbxlae
-      - run: git checkout push-to-slurm
-      - run: git pull origin push-to-slurm
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - run: ls -lah ./slurm/
-      - run: |
+      - name: Setup
+        run: |
+          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+          cd /oscar/home/isears1/Repos/ptbxlae
+          git checkout push-to-slurm
+          git pull origin push-to-slurm
+          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+          ls -lah ./slurm/
+      - name: Run slurm job
+        shell: bash -l {0}
+        run: |
+          ls -lah ./
+          conda activate ptbxlae
           srun \
             -N 1 \
             -p gpu \
@@ -19,5 +25,4 @@ jobs:
             --cpus-per-task=48 \
             --mem=32G \
             --time=48:00:00 \
-            conda activate ptbxlae && python main.py --config configs/synthetic_cvae.yaml fit
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+            python main.py --config configs/synthetic_cvae.yaml fit
