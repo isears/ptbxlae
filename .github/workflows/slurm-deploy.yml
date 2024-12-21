@@ -17,7 +17,7 @@ jobs:
             -p gpu \
             --gres=gpu:1 \
             --cpus-per-task=48 \
-            --mem=32G
-            --time=48:00:00
+            --mem=32G \
+            --time=48:00:00 \
             python main.py --config configs/synthetic_cvae.yaml fit
       - run: echo "🍏 This job's status is ${{ job.status }}."
