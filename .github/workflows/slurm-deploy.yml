@@ -18,6 +18,7 @@ jobs:
         run: |
           ls -lah ./
           conda activate ptbxlae
+          python --version
           srun \
             -N 1 \
             -p gpu \
