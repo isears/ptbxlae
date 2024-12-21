@@ -21,12 +21,5 @@ jobs:
           rm -f .neptune/config.yaml
           conda activate ptbxlae
           echo $CONDA_DEFAULT_ENV
-          python --version
-          srun \
-            -N 1 \
-            -p gpu \
-            --gres=gpu:1 \
-            --cpus-per-task=48 \
-            --mem=32G \
-            --time=48:00:00 \
-            python main.py --config configs/synthetic_cvae.yaml fit
+          pwd -P
+          cat configs/synthetic_cvae.yaml
