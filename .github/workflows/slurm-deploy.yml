@@ -11,5 +11,13 @@ jobs:
       - run: git pull origin push-to-slurm
       - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
       - run: ls -lah ./slurm/
-      - run: sbatch slurm/train.sh
+      - run: |
+          srun \
+            -N 1 \
+            -p gpu \
+            --gres=gpu:1 \
+            --cpus-per-task=48 \
+            --mem=32G
+            --time=48:00:00
+            python main.py --config configs/synthetic_cvae.yaml fit
       - run: echo "🍏 This job's status is ${{ job.status }}."
