@@ -23,7 +23,6 @@ jobs:
           conda activate ptbxlae
           echo $CONDA_DEFAULT_ENV
           pwd -P
-          cat configs/synthetic_cvae.yaml
           python --version
           srun \
             -N 1 \
