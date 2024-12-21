@@ -2,7 +2,7 @@ name: Slurm Deploy
 run-name: ${{ github.actor }} is running a job on oscar
 on: [push]
 jobs:
-  Slurm-Test:
+  Slurm-Deploy:
     runs-on: self-hosted
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
@@ -11,4 +11,5 @@ jobs:
       - run: git pull origin push-to-slurm
       - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
       - run: ls -lah ./slurm/
+      - run: sbatch slurm/train.sh
       - run: echo "🍏 This job's status is ${{ job.status }}."
