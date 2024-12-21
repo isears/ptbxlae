@@ -11,6 +11,7 @@ jobs:
       - run: git pull origin push-to-slurm
       - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
       - run: ls -lah ./slurm/
+      - run: conda activate ptbxlae
       - run: |
           srun \
             -N 1 \
