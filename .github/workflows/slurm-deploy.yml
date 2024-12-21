@@ -16,6 +16,7 @@ jobs:
       - name: Run slurm job
         shell: bash -l {0}
         run: |
+          cd /oscar/home/isears1/Repos/ptbxlae
           export PYTHONUNBUFFERED=TRUE
           ls -lah ./
           rm -f .neptune/config.yaml
@@ -23,3 +24,12 @@ jobs:
           echo $CONDA_DEFAULT_ENV
           pwd -P
           cat configs/synthetic_cvae.yaml
+          python --version
+          srun \
+            -N 1 \
+            -p gpu \
+            --gres=gpu:1 \
+            --cpus-per-task=48 \
+            --mem=32G \
+            --time=00:10:00 \
+            python main.py --config configs/synthetic_cvae.yaml validate
