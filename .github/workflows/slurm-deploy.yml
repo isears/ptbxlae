@@ -31,4 +31,4 @@ jobs:
             --cpus-per-task=48 \
             --mem=32G \
             --time=00:10:00 \
-            python main.py --config configs/synthetic_cvae.yaml validate
+            python main.py --config configs/synthetic_cvae.yaml fit
