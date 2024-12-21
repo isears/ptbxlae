@@ -17,7 +17,7 @@ fit:
         init_args:
           patience: 5
           monitor: val_loss
-      - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      - class_path: ptbxlae.modeling.FinalUploadingModelCheckpoint
         init_args:
           save_top_k: 1
           monitor: val_loss

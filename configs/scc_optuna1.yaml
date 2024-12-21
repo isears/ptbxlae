@@ -2,7 +2,7 @@
 # Best params from 24-hr optuna run, sum reduction validation loss 345.5687561035156
 fit:
   trainer:
-    max_epochs: 100
+    max_epochs: 1000
     gradient_clip_val: 4.0
     gradient_clip_algorithm: "norm"
     logger:
@@ -18,7 +18,7 @@ fit:
         init_args:
           patience: 5
           monitor: val_loss
-      - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      - class_path: ptbxlae.modeling.FinalUploadingModelCheckpoint
         init_args:
           save_top_k: 1
           monitor: val_loss

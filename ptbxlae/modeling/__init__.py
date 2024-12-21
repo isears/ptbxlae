@@ -4,6 +4,21 @@ import lightning as L
 from torch.distributions.normal import Normal
 import torch
 from abc import ABC, abstractmethod
+from neptune.types import File
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers import NeptuneLogger
+
+
+class FinalUploadingModelCheckpoint(ModelCheckpoint):
+    def on_fit_end(self, trainer, pl_module):
+        self.best_model_path
+
+        if type(trainer.logger) == NeptuneLogger:
+            trainer.logger.experiment["model/checkpoints/best.ckpt"].upload(
+                self.best_model_path
+            )
+
+        return super().on_fit_end(trainer, pl_module)
 
 
 class BaseVAE(L.LightningModule, ABC):

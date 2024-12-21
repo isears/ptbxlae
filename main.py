@@ -5,7 +5,11 @@ from ptbxlae.dataprocessing.dataModules import BaseDM
 
 def cli_main():
     cli = LightningCLI(
-        BaseVAE, BaseDM, subclass_mode_data=True, subclass_mode_model=True
+        BaseVAE,
+        BaseDM,
+        subclass_mode_data=True,
+        subclass_mode_model=True,
+        save_config_kwargs={"overwrite": True},
     )
 
 
