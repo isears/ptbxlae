@@ -3,9 +3,11 @@
 #SBATCH -p gpu
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=48
-#SBATCH --mem=12G
+#SBATCH --mem=32G
 #SBATCH --time=48:00:00
 #SBATCH --output ./slurmlogs/train.log
+
+export PYTHONUNBUFFERED=TRUE
 
 if [ -z "$1" ]
   then
@@ -13,13 +15,8 @@ if [ -z "$1" ]
     exit 0
 fi
 
-# module load cuda/11.3.1
-# module load cudnn/8.2.0
 nvidia-smi
-
-export PYTHONUNBUFFERED=TRUE
-
-
 python --version
 
+# python main.py --config $1 fit --ckpt_path cache/savedmodels/synthetic-oscar.ckpt
 python main.py --config $1 fit

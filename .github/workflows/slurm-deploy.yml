@@ -1,0 +1,33 @@
+name: Slurm Deploy
+run-name: ${{ github.actor }} is running a job on oscar
+on: [push]
+jobs:
+  Slurm-Deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Setup
+        run: |
+          echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+          cd /oscar/home/isears1/Repos/ptbxlae
+          git checkout push-to-slurm
+          git pull origin push-to-slurm
+          echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+          ls -lah ./slurm/
+      - name: Run slurm job
+        shell: bash -l {0}
+        run: |
+          cd /oscar/home/isears1/Repos/ptbxlae
+          export PYTHONUNBUFFERED=TRUE
+          rm -f .neptune/config.yaml
+          conda activate ptbxlae
+          echo $CONDA_DEFAULT_ENV
+          pwd -P
+          python --version
+          srun \
+            -N 1 \
+            -p gpu \
+            --gres=gpu:1 \
+            --cpus-per-task=48 \
+            --mem=32G \
+            --time=48:00:00 \
+            python main.py --config configs/synthetic_cvae.yaml fit --trainer.enable_progress_bar=false
