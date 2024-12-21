@@ -16,8 +16,11 @@ jobs:
       - name: Run slurm job
         shell: bash -l {0}
         run: |
+          export PYTHONUNBUFFERED=TRUE
           ls -lah ./
+          rm -f .neptune/config.yaml
           conda activate ptbxlae
+          echo $CONDA_DEFAULT_ENV
           python --version
           srun \
             -N 1 \
