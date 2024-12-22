@@ -33,6 +33,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
             x = range(0, recon.shape[-1])
             ax.plot(x, self.example_batch[idx, channel_idx, :], label="original")
             ax.plot(x, recon[idx, channel_idx, :].to("cpu"), label="reconstruction")
+            fig.suptitle(f"Epoch {trainer.current_epoch}")
 
             trainer.logger.experiment[
                 f"visuals/reconstruction-epoch{trainer.current_epoch}-example{idx}"

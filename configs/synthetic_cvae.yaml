@@ -29,7 +29,7 @@ fit:
   model:
     class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
     init_args:
-      latent_dim: 100
+      latent_dim: 40
       conv_depth: 3
       fc_depth: 2
       kernel_size: 7
