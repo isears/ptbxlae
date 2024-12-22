@@ -18,7 +18,7 @@ fit:
         init_args:
           patience: 10
           monitor: val_loss
-      - class_path: ptbxlae.modeling.FinalUploadingModelCheckpoint
+      - class_path: ptbxlae.modeling.NeptuneUploadingModelCheckpoint
         init_args:
           save_top_k: 1
           monitor: val_loss

@@ -7,6 +7,7 @@ from ptbxlae.modeling.convolutionalModules import (
     ConvolutionalEcgDecoder,
     ConvolutionalEcgEncoderDecoderSharedParams,
 )
+from torchinfo import summary
 
 import lightning as L
 
@@ -58,6 +59,8 @@ class ConvolutionalEcgVAE(BaseVAE):
             self.encoder.architecture_params.linear_input_sizes[-1],
             latent_dim,
         )
+
+        summary(self)
 
     def encode_mean_logvar(self, x):
         e = self.encoder(x)

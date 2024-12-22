@@ -13,12 +13,13 @@ fit:
         dict_kwargs:
           tags:
             - single-cycle
+            - multichannel
     callbacks:
       - class_path: lightning.pytorch.callbacks.EarlyStopping
         init_args:
           patience: 5
           monitor: val_loss
-      - class_path: ptbxlae.modeling.FinalUploadingModelCheckpoint
+      - class_path: ptbxlae.modeling.NeptuneUploadingModelCheckpoint
         init_args:
           save_top_k: 1
           monitor: val_loss

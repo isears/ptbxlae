@@ -8,9 +8,40 @@ from neptune.types import File
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import NeptuneLogger
 from torchmetrics.regression.mse import MeanSquaredError
+import matplotlib.pyplot as plt
 
 
-class FinalUploadingModelCheckpoint(ModelCheckpoint):
+class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
+    def on_train_start(self, trainer, pl_module):
+
+        self.example_batch = torch.stack(
+            [trainer.val_dataloaders.dataset[idx] for idx in range(0, 20)]
+        )
+
+        return super().on_train_start(trainer, pl_module)
+
+    def on_save_checkpoint(self, trainer, pl_module, checkpoint):
+        pl_module.eval()
+        with torch.no_grad():
+            recon, _, _ = pl_module(self.example_batch.to("cuda"))
+
+        for idx in range(0, self.example_batch.shape[0]):
+            # ensure distribution over available channels while never exceeding number of channels
+            channel_idx = idx % recon.shape[1]
+
+            fig, ax = plt.subplots()
+            x = range(0, recon.shape[-1])
+            ax.plot(x, self.example_batch[idx, channel_idx, :], label="original")
+            ax.plot(x, recon[idx, channel_idx, :].to("cpu"), label="reconstruction")
+
+            trainer.logger.experiment[
+                f"visuals/reconstruction-epoch{trainer.current_epoch}-example{idx}"
+            ].upload(File.as_html(fig))
+
+        pl_module.train()
+
+        return super().on_save_checkpoint(trainer, pl_module, checkpoint)
+
     def on_fit_end(self, trainer, pl_module):
         self.best_model_path
 
