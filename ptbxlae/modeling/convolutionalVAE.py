@@ -60,7 +60,7 @@ class ConvolutionalEcgVAE(BaseVAE):
             latent_dim,
         )
 
-        summary(self)
+        summary(self, input_size=(32, n_channels, seq_len))
 
     def encode_mean_logvar(self, x):
         e = self.encoder(x)
