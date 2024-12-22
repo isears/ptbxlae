@@ -12,10 +12,11 @@ fit:
           tags:
             - synthetic-pretraining
             - full-10s
+            - single-channel
     callbacks:
       - class_path: lightning.pytorch.callbacks.EarlyStopping
         init_args:
-          patience: 5
+          patience: 10
           monitor: val_loss
       - class_path: ptbxlae.modeling.FinalUploadingModelCheckpoint
         init_args:
@@ -35,10 +36,10 @@ fit:
       dropout: null
       batchnorm: False
       lr: 4.7491754446145785e-05
-      n_channels: 12
+      n_channels: 1
       seq_len: 1000
   data:
-    class_path: ptbxlae.dataprocessing.dataModules.SyntheticDM
+    class_path: ptbxlae.dataprocessing.dataModules.SingleChannelSyntheticDM
     init_args:
       batch_size: 32
       examples_per_epoch: 3200

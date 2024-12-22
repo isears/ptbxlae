@@ -29,13 +29,19 @@ class BaseDM(L.LightningDataModule):
         )
 
     def train_dataloader(self):
-        return DataLoader(self.train_ds, num_workers=self.cores_available, batch_size=self.batch_size)
+        return DataLoader(
+            self.train_ds, num_workers=self.cores_available, batch_size=self.batch_size
+        )
 
     def val_dataloader(self):
-        return DataLoader(self.valid_ds, num_workers=self.cores_available, batch_size=self.batch_size)
+        return DataLoader(
+            self.valid_ds, num_workers=self.cores_available, batch_size=self.batch_size
+        )
 
     def test_dataloader(self):
-        return DataLoader(self.test_ds, num_workers=self.cores_available, batch_size=self.batch_size)
+        return DataLoader(
+            self.test_ds, num_workers=self.cores_available, batch_size=self.batch_size
+        )
 
 
 class PtbxlDM(BaseDM):
@@ -95,9 +101,13 @@ class PtbxlSmallSigDM(BaseDM):
 
 
 class SyntheticDM(BaseDM):
-
     def _get_ds(self):
         return NkSyntheticDS(**self.kwargs)
+
+
+class SingleChannelSyntheticDM(BaseDM):
+    def _get_ds(self):
+        return SinglechannelSyntheticDS(**self.kwargs)
 
 
 def load_testset_to_mem(root_folder: str = "./data"):

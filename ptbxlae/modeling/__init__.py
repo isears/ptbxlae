@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from neptune.types import File
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import NeptuneLogger
+from torchmetrics.regression.mse import MeanSquaredError
 
 
 class FinalUploadingModelCheckpoint(ModelCheckpoint):
@@ -25,6 +26,8 @@ class BaseVAE(L.LightningModule, ABC):
 
     def __init__(self):
         super(BaseVAE, self).__init__()
+        self.train_mse = MeanSquaredError()
+        self.valid_mse = MeanSquaredError()
         self.save_hyperparameters()
 
     @abstractmethod
@@ -68,20 +71,29 @@ class BaseVAE(L.LightningModule, ABC):
         mean, logvar = self.encode_mean_logvar(x)
         z = self._reparameterization(mean, logvar)
         reconstruction = self.decode(z)
-
-        loss = self._loss_fn(x, reconstruction, mean, logvar)
-
-        return loss
+        return reconstruction, mean, logvar
 
     def training_step(self, x):
-        loss = self.forward(x)
-        self.log("train_loss", loss)
+        reconstruction, mean, logvar = self.forward(x)
+        loss = self._loss_fn(x, reconstruction, mean, logvar)
+        self.train_mse.update(reconstruction, x)
+
+        self.log("train_loss", loss, on_step=False, on_epoch=True)
+        self.log(
+            "train_mse", self.train_mse, on_step=False, on_epoch=True, prog_bar=True
+        )
 
         return loss
 
     def validation_step(self, x):
-        loss = self.forward(x)
-        self.log("val_loss", loss)
+        reconstruction, mean, logvar = self.forward(x)
+        loss = self._loss_fn(x, reconstruction, mean, logvar)
+        self.valid_mse.update(reconstruction, x)
+
+        self.log("val_loss", loss, on_step=False, on_epoch=True)
+        self.log("val_mse", self.valid_mse, on_step=False, on_epoch=True, prog_bar=True)
+
+        return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
