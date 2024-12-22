@@ -19,14 +19,14 @@ class NkSyntheticDS(torch.utils.data.Dataset):
         self.duration_s = duration_s
         self.sampling_rate_hz = sampling_rate_hz
 
-    def random_uniform(self, low: float, high: float) -> float:
-        range = high - low
-        return (torch.rand(1, generator=self.generator).item() * range) + low
-
-    def random_normal(self, mean: float, std: float) -> float:
-        return torch.normal(
-            mean=torch.Tensor([mean]), std=torch.Tensor([std]), generator=self.generator
-        ).item()
+        # Normal parameters (used by default)
+        # ===================================
+        # t, the starting position along the circle of each interval in radius
+        self.ti = np.array((-70, -15, 0, 15, 100))
+        # a, the amplitude of each spike
+        self.ai = np.array((1.2, -5, 30, -7.5, 0.75))
+        # b, the width of each spike
+        self.bi = np.array((0.25, 0.1, 0.1, 0.1, 0.4))
 
     def __len__(self):
         return self.examples_per_epoch
@@ -35,12 +35,13 @@ class NkSyntheticDS(torch.utils.data.Dataset):
         ecg = nk.ecg_simulate(
             duration=self.duration_s * 2,
             sampling_rate=self.sampling_rate_hz,
-            noise=self.random_uniform(0, 0.5),
             # https://pmc.ncbi.nlm.nih.gov/articles/PMC11137473
-            heart_rate=self.random_normal(74.5, 8.5),
-            heart_rate_std=self.random_normal(1, 0.1),
+            heart_rate=np.random.normal(74.5, 8.5),
             method="multileads",
             random_state=42,
+            ti=np.random.normal(self.ti, np.ones(5) * 3),
+            ai=np.random.normal(self.ai, np.abs(self.ai / 5)),
+            bi=np.random.normal(self.bi, np.abs(self.bi / 5)),
         )
 
         ecg_clean = np.apply_along_axis(
@@ -48,7 +49,7 @@ class NkSyntheticDS(torch.utils.data.Dataset):
         )
 
         # Need to do random sliding window so that sequence doesn't always start on rpeak
-        random_start = int(self.random_uniform(0, ecg_clean.shape[1] // 2))
+        random_start = int(np.random.uniform(0, ecg_clean.shape[1] // 2))
         ecg_clean = ecg_clean[
             :, random_start : (ecg_clean.shape[1] // 2) + random_start
         ]
@@ -62,30 +63,26 @@ class SinglechannelSyntheticDS(NkSyntheticDS):
         ecg = nk.ecg_simulate(
             duration=self.duration_s * 2,
             sampling_rate=self.sampling_rate_hz,
-            noise=self.random_uniform(0, 0.5),
             # https://pmc.ncbi.nlm.nih.gov/articles/PMC11137473
-            heart_rate=self.random_normal(74.5, 8.5),
-            heart_rate_std=self.random_normal(1, 0.1),
+            heart_rate=np.random.normal(74.5, 8.5),
             method="ecgsyn",
             random_state=42,
+            ti=np.random.normal(self.ti, np.ones(5) * 3),
+            ai=np.random.normal(self.ai, np.abs(self.ai / 5)),
+            bi=np.random.normal(self.bi, np.abs(self.bi / 5)),
         )
 
-        # TODO: changes were added to multichannel dataset without being added here too
-        # If end up using this, need to model after multichannel __getitem__ method
-        ecg_clean = np.apply_along_axis(
-            nk.ecg_clean, 1, ecg.transpose(), sampling_rate=self.sampling_rate_hz
-        )
+        ecg_clean = nk.ecg_clean(ecg, sampling_rate=self.sampling_rate_hz)
 
         # Need to do random sliding window so that sequence doesn't always start on rpeak
-        random_start = int(self.random_uniform(0, ecg.shape[-1] // 2))
-        ecg = ecg[random_start : (ecg.shape[-1] // 2) + random_start]
-        assert ecg.shape[-1] > 10, f"{random_start}"
+        random_start = int(np.random.uniform(0, len(ecg_clean) // 2))
+        ecg_clean = ecg_clean[random_start : (len(ecg_clean) // 2) + random_start]
 
-        return torch.Tensor(ecg.transpose()).unsqueeze(0)
+        return torch.Tensor(ecg_clean.astype(float)).unsqueeze(0)
 
 
 if __name__ == "__main__":
-    ds = NkSyntheticDS()
+    ds = SinglechannelSyntheticDS()
 
     example = ds[0]
 
