@@ -13,6 +13,7 @@ fit:
             - synthetic-pretraining
             - full-10s
             - multichannel
+            - DTWLoss
     callbacks:
       - class_path: lightning.pytorch.callbacks.EarlyStopping
         init_args:
@@ -38,6 +39,10 @@ fit:
       lr: 4.7491754446145785e-05
       n_channels: 12
       seq_len: 1000
+      loss:
+        class_path: ptbxlae.modeling.SumReducingSoftDTWLoss
+        init_args:
+          gamma: 1
   data:
     class_path: ptbxlae.dataprocessing.dataModules.SyntheticDM
     init_args:

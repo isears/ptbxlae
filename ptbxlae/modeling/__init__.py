@@ -9,8 +9,16 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import NeptuneLogger
 from torchmetrics.regression.mse import MeanSquaredError
 import matplotlib.pyplot as plt
+from tslearn.metrics import SoftDTWLossPyTorch
+from torch.nn import MSELoss
 
+class SumReducingSoftDTWLoss(SoftDTWLossPyTorch):
+    def __init__(self, gamma=1, normalize=False, dist_func=None):
+        super().__init__(gamma, normalize, dist_func)
 
+    def forward(self, x, y):
+        return super().forward(x, y).sum()
+    
 class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
     def on_train_start(self, trainer, pl_module):
 
@@ -56,8 +64,14 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
 class BaseVAE(L.LightningModule, ABC):
 
-    def __init__(self):
+    def __init__(self, loss=None):
         super(BaseVAE, self).__init__()
+
+        if not loss:
+            self.loss = MSELoss(reduction='sum')
+        else:
+            self.loss = loss
+
         self.train_mse = MeanSquaredError()
         self.valid_mse = MeanSquaredError()
         self.save_hyperparameters()
@@ -85,9 +99,7 @@ class BaseVAE(L.LightningModule, ABC):
 
     def _loss_fn(self, x, reconstruction, mean, logvar):
         # NOTE: the loss reduction for variational autoencoder must be sum
-        reproduction_loss = torch.nn.functional.mse_loss(
-            reconstruction, x, reduction="sum"
-        )
+        reproduction_loss = self.loss(reconstruction, x)
         KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
 
         return reproduction_loss + KLD

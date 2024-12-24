@@ -26,8 +26,9 @@ class ConvolutionalEcgVAE(BaseVAE):
         fc_scale_factor: int = 4,
         batchnorm: bool = False,
         dropout: float = None,
+        **kwargs
     ):
-        super(ConvolutionalEcgVAE, self).__init__()
+        super(ConvolutionalEcgVAE, self).__init__(**kwargs)
 
         self.lr = lr
         self.seq_len = seq_len
