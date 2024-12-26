@@ -164,6 +164,6 @@ class PtbxlSmallSig(PtbxlCleanDS):
 
 
 if __name__ == "__main__":
-    ds = PtbxlSigWithRpeaksDS(lowres=False)
+    ds = PtbxlCleanDS(lowres=True)
 
     print(ds[0])

@@ -7,11 +7,10 @@ from ptbxlae.dataprocessing.nkSyntheticDS import *
 
 
 class BaseDM(L.LightningDataModule):
-    def __init__(self, root_folder: str = "./data", batch_size: int = 32, **kwargs):
+    def __init__(self, root_folder: str = "./data", batch_size: int = 32):
         super().__init__()
         self.root_folder = root_folder
         self.batch_size = batch_size
-        self.kwargs = kwargs
         self.cores_available = len(os.sched_getaffinity(0))
 
         print(f"Initializing DM with {self.cores_available} workers")
@@ -50,8 +49,13 @@ class PtbxlDM(BaseDM):
 
 
 class PtbxlCleanDM(BaseDM):
+    def __init__(self, root_folder="./data", batch_size=32, lowres=False):
+        super().__init__(root_folder, batch_size)
+
+        self.lowres = lowres
+
     def _get_ds(self):
-        return PtbxlCleanDS(root_folder=self.root_folder, lowres=False)
+        return PtbxlCleanDS(root_folder=self.root_folder, lowres=self.lowres)
 
 
 class SingleCycleCachedDM(BaseDM):

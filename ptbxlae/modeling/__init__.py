@@ -12,18 +12,25 @@ import matplotlib.pyplot as plt
 from tslearn.metrics import SoftDTWLossPyTorch
 from torch.nn import MSELoss
 
+
 class SumReducingSoftDTWLoss(SoftDTWLossPyTorch):
     def __init__(self, gamma=1, normalize=False, dist_func=None):
         super().__init__(gamma, normalize, dist_func)
 
     def forward(self, x, y):
         return super().forward(x, y).sum()
-    
+
+
 class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
+    num_examples = 12
+
     def on_train_start(self, trainer, pl_module):
 
         self.example_batch = torch.stack(
-            [trainer.val_dataloaders.dataset[idx] for idx in range(0, 20)]
+            [
+                trainer.val_dataloaders.dataset[idx]
+                for idx in range(0, self.num_examples)
+            ]
         )
 
         return super().on_train_start(trainer, pl_module)
@@ -43,9 +50,12 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
             ax.plot(x, recon[idx, channel_idx, :].to("cpu"), label="reconstruction")
             fig.suptitle(f"Epoch {trainer.current_epoch}")
 
-            trainer.logger.experiment[
-                f"visuals/reconstruction-epoch{trainer.current_epoch}-example{idx}"
-            ].upload(File.as_html(fig))
+            if type(trainer.logger) == NeptuneLogger:
+                trainer.logger.experiment[
+                    f"valid/reconstructions/epoch-{trainer.current_epoch}/example-{idx}"
+                ].upload(File.as_html(fig))
+
+            plt.close(fig=fig)
 
         pl_module.train()
 
@@ -55,7 +65,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
         self.best_model_path
 
         if type(trainer.logger) == NeptuneLogger:
-            trainer.logger.experiment["model/checkpoints/best.ckpt"].upload(
+            trainer.logger.experiment["model/checkpoints/best"].upload(
                 self.best_model_path
             )
 
@@ -68,7 +78,7 @@ class BaseVAE(L.LightningModule, ABC):
         super(BaseVAE, self).__init__()
 
         if not loss:
-            self.loss = MSELoss(reduction='sum')
+            self.loss = MSELoss(reduction="sum")
         else:
             self.loss = loss
 
