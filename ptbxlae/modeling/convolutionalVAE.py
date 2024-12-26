@@ -26,7 +26,7 @@ class ConvolutionalEcgVAE(BaseVAE):
         fc_scale_factor: int = 4,
         batchnorm: bool = False,
         dropout: float = None,
-        **kwargs
+        **kwargs,
     ):
         super(ConvolutionalEcgVAE, self).__init__(**kwargs)
 
@@ -72,12 +72,12 @@ class ConvolutionalEcgVAE(BaseVAE):
 
 
 if __name__ == "__main__":
-    x = torch.rand((8, 12, 1000))
+    x = torch.rand((32, 12, 1000)).to("cuda")
 
     m = ConvolutionalEcgVAE(
         seq_len=1000,
-        conv_depth=2,
-        fc_depth=2,
+        conv_depth=4,
+        fc_depth=3,
         kernel_size=7,
         latent_dim=100,
         dropout=0.1,
@@ -95,3 +95,9 @@ if __name__ == "__main__":
     d = m.decode(z)
 
     print(f"Decoded shape:\t {d.shape}")
+
+    reconstruction, mean, logvar = m.forward(x)
+    loss = m._loss_fn(x, reconstruction, mean, logvar)
+    m.backward(loss)
+    m.training_step(x)
+    m.validation_step(x)
