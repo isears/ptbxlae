@@ -64,6 +64,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
     def on_fit_end(self, trainer, pl_module):
         self.best_model_path
 
+        # Only save model once at end of training to avoid overhead / delays associated with uploading every model checkpoint
         if type(trainer.logger) == NeptuneLogger:
             trainer.logger.experiment["model/checkpoints/best"].upload(
                 self.best_model_path
@@ -84,6 +85,7 @@ class BaseVAE(L.LightningModule, ABC):
 
         self.train_mse = MeanSquaredError()
         self.valid_mse = MeanSquaredError()
+        self.test_mse = MeanSquaredError()
         self.save_hyperparameters()
 
     @abstractmethod
@@ -146,6 +148,16 @@ class BaseVAE(L.LightningModule, ABC):
 
         self.log("val_loss", loss, on_step=False, on_epoch=True)
         self.log("val_mse", self.valid_mse, on_step=False, on_epoch=True, prog_bar=True)
+
+        return loss
+
+    def test_step(self, x):
+        reconstruction, mean, logvar = self.forward(x)
+        loss = self._loss_fn(x, reconstruction, mean, logvar)
+        self.test_mse.update(reconstruction, x)
+
+        self.log("test_loss", loss, on_step=False, on_epoch=True)
+        self.log("test_mse", self.test_mse, on_step=False, on_epoch=True)
 
         return loss
 
