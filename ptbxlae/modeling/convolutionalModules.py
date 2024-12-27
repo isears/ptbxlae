@@ -232,7 +232,7 @@ class ConvolutionalEcgDecoder(torch.nn.Module):
                 :,
                 :,
                 self.architecture_params.left_pad : -self.architecture_params.right_pad,
-            ]
+            ].contiguous()
         else:
             return out
 
