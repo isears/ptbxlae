@@ -82,10 +82,10 @@ class PtbxlDS(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.metadata)
 
-    def _get_label(self, index: int):
+    def _get_labels(self, index: int):
         this_meta = self.metadata.iloc[index]
         # Probably over-kill but want to make certain order of labels is consistent
-        return torch.Tensor([this_meta[c] for c in self.ordered_labels]).float()
+        return {c: this_meta[c] for c in self.ordered_labels}
 
     def __getitem__(self, index: int):
         # Outputs ECG data of shape sig_len x num_leads (e.g. for low res 1000 x 12)
@@ -96,9 +96,9 @@ class PtbxlDS(torch.utils.data.Dataset):
         )
 
         if self.return_labels:
-            labels = self._get_label(index)
+            labels = self._get_labels(index)
         else:
-            labels = torch.Tensor([])
+            labels = {}
 
         return torch.Tensor(sig).transpose(1, 0).float(), labels
 
@@ -128,9 +128,9 @@ class PtbxlCleanDS(PtbxlDS):
         sig_clean = self._clean(sig, sigmeta)
 
         if self.return_labels:
-            return torch.Tensor(sig_clean).float(), self._get_label(index)
+            return torch.Tensor(sig_clean).float(), self._get_labels(index)
         else:
-            return torch.Tensor(sig_clean).float(), torch.Tensor([])
+            return torch.Tensor(sig_clean).float(), {}
 
 
 if __name__ == "__main__":

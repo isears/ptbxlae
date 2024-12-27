@@ -61,7 +61,7 @@ class SingleCycleCachedDS(torch.utils.data.Dataset):
                 f"{self.cache_path}/{pid}/{first_ecg_dir}/{first_cycle_fname}"
             )
 
-        return torch.Tensor(df.to_numpy().transpose()).float(), torch.Tensor([])
+        return torch.Tensor(df.to_numpy().transpose()).float(), {}
 
 
 if __name__ == "__main__":

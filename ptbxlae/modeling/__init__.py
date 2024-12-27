@@ -167,17 +167,13 @@ class BaseVAE(L.LightningModule, ABC):
 
         self.log("test_loss", loss, on_step=False, on_epoch=True)
         self.log("test_mse", self.test_mse, on_step=False, on_epoch=True)
-        self.log(
-            "test_label_evaluation",
-            self.test_label_evaluator,
-            on_step=False,
-            on_epoch=True,
-        )
 
         return loss
 
-    def on_test_end(self):
-        pass
+    def on_test_epoch_end(self):
+        label_evals = self.test_label_evaluator.compute()
+        for label, score in label_evals.items():
+            self.log(f"AUROC ({label})", score)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
