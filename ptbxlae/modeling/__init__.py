@@ -11,6 +11,7 @@ from torchmetrics.regression.mse import MeanSquaredError
 import matplotlib.pyplot as plt
 from tslearn.metrics import SoftDTWLossPyTorch
 from torch.nn import MSELoss
+from ptbxlae.evaluation import LatentRepresentationUtilityMetric
 
 
 class SumReducingSoftDTWLoss(SoftDTWLossPyTorch):
@@ -28,7 +29,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
         self.example_batch = torch.stack(
             [
-                trainer.val_dataloaders.dataset[idx]
+                trainer.val_dataloaders.dataset[idx][0]
                 for idx in range(0, self.num_examples)
             ]
         )
@@ -83,6 +84,7 @@ class BaseVAE(L.LightningModule, ABC):
         else:
             self.loss = loss
 
+        self.test_label_evaluator = LatentRepresentationUtilityMetric()
         self.train_mse = MeanSquaredError()
         self.valid_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
@@ -129,7 +131,8 @@ class BaseVAE(L.LightningModule, ABC):
         reconstruction = self.decode(z)
         return reconstruction, mean, logvar
 
-    def training_step(self, x):
+    def training_step(self, batch):
+        x, _ = batch
         reconstruction, mean, logvar = self.forward(x)
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.train_mse.update(reconstruction, x)
@@ -141,7 +144,8 @@ class BaseVAE(L.LightningModule, ABC):
 
         return loss
 
-    def validation_step(self, x):
+    def validation_step(self, batch):
+        x, _ = batch
         reconstruction, mean, logvar = self.forward(x)
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.valid_mse.update(reconstruction, x)
@@ -151,15 +155,29 @@ class BaseVAE(L.LightningModule, ABC):
 
         return loss
 
-    def test_step(self, x):
-        reconstruction, mean, logvar = self.forward(x)
+    def test_step(self, batch):
+        x, labels = batch
+        mean, logvar = self.encode_mean_logvar(x)
+        z = self._reparameterization(mean, logvar)
+        reconstruction = self.decode(z)
+
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.test_mse.update(reconstruction, x)
+        self.test_label_evaluator.update(z, labels)
 
         self.log("test_loss", loss, on_step=False, on_epoch=True)
         self.log("test_mse", self.test_mse, on_step=False, on_epoch=True)
+        self.log(
+            "test_label_evaluation",
+            self.test_label_evaluator,
+            on_step=False,
+            on_epoch=True,
+        )
 
         return loss
+
+    def on_test_end(self):
+        pass
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
