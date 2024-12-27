@@ -53,7 +53,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
             if type(trainer.logger) == NeptuneLogger:
                 trainer.logger.experiment[
-                    f"valid/reconstructions/epoch-{trainer.current_epoch}/example-{idx}"
+                    f"val/reconstructions/epoch-{trainer.current_epoch}/example-{idx}"
                 ].upload(File.as_html(fig))
 
             plt.close(fig=fig)
@@ -137,9 +137,9 @@ class BaseVAE(L.LightningModule, ABC):
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.train_mse.update(reconstruction, x)
 
-        self.log("train_loss", loss, on_step=False, on_epoch=True)
+        self.log("train/loss", loss, on_step=False, on_epoch=True)
         self.log(
-            "train_mse", self.train_mse, on_step=False, on_epoch=True, prog_bar=True
+            "train/mse", self.train_mse, on_step=False, on_epoch=True, prog_bar=True
         )
 
         return loss
@@ -150,8 +150,8 @@ class BaseVAE(L.LightningModule, ABC):
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.valid_mse.update(reconstruction, x)
 
-        self.log("val_loss", loss, on_step=False, on_epoch=True)
-        self.log("val_mse", self.valid_mse, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val/loss", loss, on_step=False, on_epoch=True)
+        self.log("val/mse", self.valid_mse, on_step=False, on_epoch=True, prog_bar=True)
 
         return loss
 
@@ -165,8 +165,8 @@ class BaseVAE(L.LightningModule, ABC):
         self.test_mse.update(reconstruction, x)
         self.test_label_evaluator.update(z, labels)
 
-        self.log("test_loss", loss, on_step=False, on_epoch=True)
-        self.log("test_mse", self.test_mse, on_step=False, on_epoch=True)
+        self.log("test/loss", loss, on_step=False, on_epoch=True)
+        self.log("test/mse", self.test_mse, on_step=False, on_epoch=True)
 
         return loss
 

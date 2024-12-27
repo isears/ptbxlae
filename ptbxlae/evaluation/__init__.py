@@ -1,11 +1,12 @@
 from torchmetrics import Metric
 import torch
-import pandas as pd
 from sklearn.svm import SVC
 from sklearn.metrics import roc_auc_score
 
 
 class LatentRepresentationUtilityMetric(Metric):
+    full_state_update: bool = False
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.latent_representations_list = list()
