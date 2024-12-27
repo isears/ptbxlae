@@ -4,10 +4,26 @@ import os
 from ptbxlae.dataprocessing import load_single_record
 import neurokit2 as nk
 import numpy as np
+import ast
 
 
 class PtbxlDS(torch.utils.data.Dataset):
-    def __init__(self, root_folder: str = "./data", lowres=False):
+    def __init__(
+        self,
+        root_folder: str = "./data",
+        lowres: bool = False,
+        return_labels: bool = False,
+    ):
+        """Base PTBXL dataset initialization
+
+        Args:
+            root_folder (str, optional): Path to PTBXL data. Defaults to "./data".
+            lowres (bool, optional): Whether to use the 100Hz (True) or 500Hz (False) data. Defaults to False.
+            return_labels (bool, optional): Whether to return diagnostic labels for each EKG. Label returning was made optional because it is not necessary for the autoencoder training loop and will probably slow down the dataloaders significantly. Defaults to False.
+
+        Returns:
+            None: None
+        """
         super().__init__()
 
         # If not filtered already, do filtering
@@ -46,9 +62,33 @@ class PtbxlDS(torch.utils.data.Dataset):
         self.metadata = metadata
         self.lowres = lowres
         self.root_folder = root_folder
+        self.return_labels = return_labels
+
+        if self.return_labels:
+            # Get PTBXL labels
+            self.metadata.scp_codes = self.metadata.scp_codes.apply(ast.literal_eval)
+
+            # Modified from physionet example.py
+            scp_codes = pd.read_csv(f"{root_folder}/scp_statements.csv", index_col=0)
+            scp_codes = scp_codes[scp_codes.diagnostic == 1]
+
+            self.ordered_labels = list()
+
+            for diagnostic_code, description in zip(
+                scp_codes.index, scp_codes.description
+            ):
+                self.ordered_labels.append(description)
+                self.metadata[description] = self.metadata.scp_codes.apply(
+                    lambda x: diagnostic_code in x.keys()
+                ).astype(float)
 
     def __len__(self):
         return len(self.metadata)
+
+    def _get_label(self, index: int):
+        this_meta = self.metadata.iloc[index]
+        # Probably over-kill but want to make certain order of labels is consistent
+        return torch.Tensor([this_meta[c] for c in self.ordered_labels]).float()
 
     def __getitem__(self, index: int):
         # Outputs ECG data of shape sig_len x num_leads (e.g. for low res 1000 x 12)
@@ -77,7 +117,10 @@ class PtbxlCleanDS(PtbxlDS):
 
         sig_clean = self._clean(sig, sigmeta)
 
-        return torch.Tensor(sig_clean).float()
+        if self.return_labels:
+            return torch.Tensor(sig_clean).float(), self._get_label(index)
+        else:
+            return torch.Tensor(sig_clean).float()
 
 
 class PtbxlSigWithRpeaksDS(PtbxlDS):
@@ -164,6 +207,6 @@ class PtbxlSmallSig(PtbxlCleanDS):
 
 
 if __name__ == "__main__":
-    ds = PtbxlCleanDS(lowres=True)
+    ds = PtbxlCleanDS(lowres=True, return_labels=True)
 
     print(ds[0])
