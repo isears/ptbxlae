@@ -1,7 +1,7 @@
 import torch
 import pandas as pd
 import os
-from ptbxlae.dataprocessing import load_single_record
+from ptbxlae.dataprocessing import load_single_ptbxl_record
 import neurokit2 as nk
 import numpy as np
 import ast
@@ -91,7 +91,7 @@ class PtbxlDS(torch.utils.data.Dataset):
         # Outputs ECG data of shape sig_len x num_leads (e.g. for low res 1000 x 12)
         this_meta = self.metadata.iloc[index]
         ecg_id = this_meta["ecg_id"]
-        sig, sigmeta = load_single_record(
+        sig, sigmeta = load_single_ptbxl_record(
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
 
@@ -121,7 +121,7 @@ class PtbxlCleanDS(PtbxlDS):
     def __getitem__(self, index: int):
         this_meta = self.metadata.iloc[index]
         ecg_id = this_meta["ecg_id"]
-        sig, sigmeta = load_single_record(
+        sig, sigmeta = load_single_ptbxl_record(
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
 
