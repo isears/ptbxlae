@@ -29,11 +29,13 @@ class MimicDS(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.record_list)
 
-    def __getitem__(self, idx):
-        possible_ecgs = self.record_list.iloc[idx]["path"]
+    def __getitem__(self, index: int):
+        possible_ecgs = self.record_list.iloc[index]["path"]
         path = f"{self.root_folder}/{random.choice(possible_ecgs)}"
 
         sig, meta = wfdb.rdsamp(path)
+
+        sig = sig.transpose()
 
         assert meta["sig_name"] == [
             "I",
@@ -50,10 +52,22 @@ class MimicDS(torch.utils.data.Dataset):
             "V6",
         ]
 
+        # Sometimes sig contains nans, unfortunately
+        # Addressing this with linear interpolation, as it seems to be a small number in most cases
+        if np.isnan(sig).any():
+            # print(
+            #     f"[WARN] Found {np.isnan(sig).sum()} nans in {path}, interpolating..."
+            # )
+            for i in range(0, len(meta["sig_name"])):
+                nans = np.isnan(sig[i, :])
+                sig[i, nans] = np.interp(
+                    nans.nonzero()[0], (~nans).nonzero()[0], sig[i, ~nans]
+                )
+
         sig_resamp = np.apply_along_axis(
             nk.signal_resample,
             1,
-            sig.transpose(),
+            sig,
             sampling_rate=meta["fs"],
             desired_sampling_rate=self.freq,
         )

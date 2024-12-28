@@ -4,6 +4,7 @@ import torch
 from ptbxlae.dataprocessing.ptbxlDS import *
 from ptbxlae.dataprocessing.cachedDS import *
 from ptbxlae.dataprocessing.nkSyntheticDS import *
+from ptbxlae.dataprocessing.mimicDS import *
 
 
 class BaseDM(L.LightningDataModule):
@@ -86,6 +87,11 @@ class SyntheticDM(BaseDM):
 class SingleChannelSyntheticDM(BaseDM):
     def _get_ds(self):
         return SinglechannelSyntheticDS(**self.kwargs)
+
+
+class MimicDM(BaseDM):
+    def _get_ds(self):
+        return MimicDS(**self.kwargs)
 
 
 def load_testset_to_mem(root_folder: str = "./data"):
