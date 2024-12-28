@@ -153,9 +153,9 @@ class BaseVAE(L.LightningModule, ABC):
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.train_mse.update(reconstruction, x)
 
-        self.log("train/loss", loss, on_step=False, on_epoch=True)
+        self.log("train_loss", loss, on_step=False, on_epoch=True)
         self.log(
-            "train/mse", self.train_mse, on_step=False, on_epoch=True, prog_bar=True
+            "train_mse", self.train_mse, on_step=False, on_epoch=True, prog_bar=True
         )
 
         return loss
@@ -166,8 +166,8 @@ class BaseVAE(L.LightningModule, ABC):
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.valid_mse.update(reconstruction, x)
 
-        self.log("val/loss", loss, on_step=False, on_epoch=True)
-        self.log("val/mse", self.valid_mse, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val_loss", loss, on_step=False, on_epoch=True)
+        self.log("val_mse", self.valid_mse, on_step=False, on_epoch=True, prog_bar=True)
 
         return loss
 
@@ -181,15 +181,15 @@ class BaseVAE(L.LightningModule, ABC):
         self.test_mse.update(reconstruction, x)
         self.test_label_evaluator.update(z, labels)
 
-        self.log("test/loss", loss, on_step=False, on_epoch=True)
-        self.log("test/mse", self.test_mse, on_step=False, on_epoch=True)
+        self.log("test_loss", loss, on_step=False, on_epoch=True)
+        self.log("test_mse", self.test_mse, on_step=False, on_epoch=True)
 
         return loss
 
     def on_test_epoch_end(self):
         label_evals = self.test_label_evaluator.compute()
         for label, score in label_evals.items():
-            self.log(f"test/AUROC ({label})", score)
+            self.log(f"AUROC ({label})", score)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
