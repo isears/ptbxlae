@@ -10,10 +10,12 @@ model:
     lr: 4.7491754446145785e-05
     n_channels: 12
     seq_len: 1000
+    base_model_path: cache/archivedmodels/synthetic-oscar.ckpt
     loss:
       class_path: ptbxlae.modeling.SumReducingSoftDTWLoss
       init_args:
         gamma: 1
+
 data:
   class_path: ptbxlae.dataprocessing.dataModules.PtbxlCleanDM
   init_args:

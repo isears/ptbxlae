@@ -84,7 +84,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
 class BaseVAE(L.LightningModule, ABC):
 
-    def __init__(self, loss=None):
+    def __init__(self, loss: torch.nn.Module = None, base_model_path: str = None):
         super(BaseVAE, self).__init__()
 
         if not loss:
@@ -92,6 +92,7 @@ class BaseVAE(L.LightningModule, ABC):
         else:
             self.loss = loss
 
+        self.base_model_path = base_model_path
         self.test_label_evaluator = LatentRepresentationUtilityMetric()
         self.train_mse = MeanSquaredError()
         self.valid_mse = MeanSquaredError()
@@ -138,6 +139,13 @@ class BaseVAE(L.LightningModule, ABC):
         z = self._reparameterization(mean, logvar)
         reconstruction = self.decode(z)
         return reconstruction, mean, logvar
+
+    def on_train_start(self):
+        if self.base_model_path:
+            weights = torch.load(
+                self.base_model_path, map_location=self.device, weights_only=True
+            )
+            self.load_state_dict(weights["state_dict"])
 
     def training_step(self, batch):
         x, _ = batch
