@@ -11,6 +11,7 @@ from torchmetrics.regression.mse import MeanSquaredError
 import matplotlib.pyplot as plt
 from tslearn.metrics import SoftDTWLossPyTorch
 from torch.nn import MSELoss
+from ptbxlae.evaluation import LatentRepresentationUtilityMetric
 
 
 class SumReducingSoftDTWLoss(SoftDTWLossPyTorch):
@@ -22,42 +23,50 @@ class SumReducingSoftDTWLoss(SoftDTWLossPyTorch):
 
 
 class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
-    num_examples = 12
+
+    def __init__(
+        self, log_sample_reconstructions: bool, num_examples: int = 12, **kwargs
+    ):
+        super().__init__(**kwargs)
+
+        self.log_sample_reconstructions = log_sample_reconstructions
+        self.num_examples = num_examples
 
     def on_train_start(self, trainer, pl_module):
-
-        self.example_batch = torch.stack(
-            [
-                trainer.val_dataloaders.dataset[idx]
-                for idx in range(0, self.num_examples)
-            ]
-        )
+        if self.log_sample_reconstructions:
+            self.example_batch = torch.stack(
+                [
+                    trainer.val_dataloaders.dataset[idx][0]
+                    for idx in range(0, self.num_examples)
+                ]
+            )
 
         return super().on_train_start(trainer, pl_module)
 
     def on_save_checkpoint(self, trainer, pl_module, checkpoint):
-        pl_module.eval()
-        with torch.no_grad():
-            recon, _, _ = pl_module(self.example_batch.to("cuda"))
+        if self.log_sample_reconstructions:
+            pl_module.eval()
+            with torch.no_grad():
+                recon, _, _ = pl_module(self.example_batch.to("cuda"))
 
-        for idx in range(0, self.example_batch.shape[0]):
-            # ensure distribution over available channels while never exceeding number of channels
-            channel_idx = idx % recon.shape[1]
+            for idx in range(0, self.example_batch.shape[0]):
+                # ensure distribution over available channels while never exceeding number of channels
+                channel_idx = idx % recon.shape[1]
 
-            fig, ax = plt.subplots()
-            x = range(0, recon.shape[-1])
-            ax.plot(x, self.example_batch[idx, channel_idx, :], label="original")
-            ax.plot(x, recon[idx, channel_idx, :].to("cpu"), label="reconstruction")
-            fig.suptitle(f"Epoch {trainer.current_epoch}")
+                fig, ax = plt.subplots()
+                x = range(0, recon.shape[-1])
+                ax.plot(x, self.example_batch[idx, channel_idx, :], label="original")
+                ax.plot(x, recon[idx, channel_idx, :].to("cpu"), label="reconstruction")
+                fig.suptitle(f"Epoch {trainer.current_epoch}")
 
-            if type(trainer.logger) == NeptuneLogger:
-                trainer.logger.experiment[
-                    f"valid/reconstructions/epoch-{trainer.current_epoch}/example-{idx}"
-                ].upload(File.as_html(fig))
+                if type(trainer.logger) == NeptuneLogger:
+                    trainer.logger.experiment[
+                        f"val/reconstructions/epoch-{trainer.current_epoch}/example-{idx}"
+                    ].upload(File.as_html(fig))
 
-            plt.close(fig=fig)
+                plt.close(fig=fig)
 
-        pl_module.train()
+            pl_module.train()
 
         return super().on_save_checkpoint(trainer, pl_module, checkpoint)
 
@@ -65,7 +74,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
         self.best_model_path
 
         # Only save model once at end of training to avoid overhead / delays associated with uploading every model checkpoint
-        if type(trainer.logger) == NeptuneLogger:
+        if type(trainer.logger) == NeptuneLogger and self.log_sample_reconstructions:
             trainer.logger.experiment["model/checkpoints/best"].upload(
                 self.best_model_path
             )
@@ -75,7 +84,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
 class BaseVAE(L.LightningModule, ABC):
 
-    def __init__(self, loss=None):
+    def __init__(self, loss: torch.nn.Module = None, base_model_path: str = None):
         super(BaseVAE, self).__init__()
 
         if not loss:
@@ -83,6 +92,8 @@ class BaseVAE(L.LightningModule, ABC):
         else:
             self.loss = loss
 
+        self.base_model_path = base_model_path
+        self.test_label_evaluator = LatentRepresentationUtilityMetric()
         self.train_mse = MeanSquaredError()
         self.valid_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
@@ -129,7 +140,15 @@ class BaseVAE(L.LightningModule, ABC):
         reconstruction = self.decode(z)
         return reconstruction, mean, logvar
 
-    def training_step(self, x):
+    def on_train_start(self):
+        if self.base_model_path:
+            weights = torch.load(
+                self.base_model_path, map_location=self.device, weights_only=True
+            )
+            self.load_state_dict(weights["state_dict"])
+
+    def training_step(self, batch):
+        x, _ = batch
         reconstruction, mean, logvar = self.forward(x)
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.train_mse.update(reconstruction, x)
@@ -141,7 +160,8 @@ class BaseVAE(L.LightningModule, ABC):
 
         return loss
 
-    def validation_step(self, x):
+    def validation_step(self, batch):
+        x, _ = batch
         reconstruction, mean, logvar = self.forward(x)
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.valid_mse.update(reconstruction, x)
@@ -151,15 +171,25 @@ class BaseVAE(L.LightningModule, ABC):
 
         return loss
 
-    def test_step(self, x):
-        reconstruction, mean, logvar = self.forward(x)
+    def test_step(self, batch):
+        x, labels = batch
+        mean, logvar = self.encode_mean_logvar(x)
+        z = self._reparameterization(mean, logvar)
+        reconstruction = self.decode(z)
+
         loss = self._loss_fn(x, reconstruction, mean, logvar)
         self.test_mse.update(reconstruction, x)
+        self.test_label_evaluator.update(z, labels)
 
         self.log("test_loss", loss, on_step=False, on_epoch=True)
         self.log("test_mse", self.test_mse, on_step=False, on_epoch=True)
 
         return loss
+
+    def on_test_epoch_end(self):
+        label_evals = self.test_label_evaluator.compute()
+        for label, score in label_evals.items():
+            self.log(f"AUROC ({label})", score)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)

@@ -7,11 +7,12 @@ from ptbxlae.dataprocessing.nkSyntheticDS import *
 
 
 class BaseDM(L.LightningDataModule):
-    def __init__(self, root_folder: str = "./data", batch_size: int = 32):
+    def __init__(self, root_folder: str = "./data", batch_size: int = 32, **kwargs):
         super().__init__()
         self.root_folder = root_folder
         self.batch_size = batch_size
         self.cores_available = len(os.sched_getaffinity(0))
+        self.kwargs = kwargs
 
         print(f"Initializing DM with {self.cores_available} workers")
 
@@ -38,6 +39,11 @@ class BaseDM(L.LightningDataModule):
         )
 
     def test_dataloader(self):
+        if hasattr(self.test_ds.dataset, "set_return_labels") and callable(
+            self.test_ds.dataset.set_return_labels
+        ):
+            self.test_ds.dataset.set_return_labels(True)
+
         return DataLoader(
             self.test_ds, num_workers=self.cores_available, batch_size=self.batch_size
         )
@@ -68,40 +74,6 @@ class SingleCycleCachedDM(BaseDM):
 
     def _get_ds(self):
         return SingleCycleCachedDS(cache_path=self.cache_folder)
-
-
-class PtbxlSigWithRpeaksDM(BaseDM):
-    def __init__(
-        self,
-        root_folder: str = "./data",
-        batch_size: int = 32,
-        smoothing=False,
-        stacked=False,
-    ):
-        super().__init__(root_folder, batch_size)
-        self.smoothing = smoothing
-        self.stacked = stacked
-
-    def _get_ds(self):
-        return PtbxlSigWithRpeaksDS(
-            root_folder=self.root_folder, smoothing=self.smoothing, stacked=self.stacked
-        )
-
-
-class PtbxlSmallSigDM(BaseDM):
-    def __init__(
-        self, root_folder="./data", batch_size=32, seq_len=500, single_channel=False
-    ):
-        super().__init__(root_folder, batch_size)
-        self.seq_len = seq_len
-        self.single_channel = single_channel
-
-    def _get_ds(self):
-        return PtbxlSmallSig(
-            root_folder=self.root_folder,
-            seq_len=self.seq_len,
-            single_channel=self.single_channel,
-        )
 
 
 class SyntheticDM(BaseDM):

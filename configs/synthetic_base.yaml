@@ -2,22 +2,20 @@ model:
   class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
   init_args:
     latent_dim: 100
-    conv_depth: 3
-    fc_depth: 2
+    conv_depth: 4
+    fc_depth: 3
     kernel_size: 7
     dropout: null
     batchnorm: False
     lr: 4.7491754446145785e-05
     n_channels: 12
     seq_len: 1000
-    base_model_path: cache/archivedmodels/synthetic-oscar.ckpt
     loss:
       class_path: ptbxlae.modeling.SumReducingSoftDTWLoss
       init_args:
         gamma: 1
-
 data:
-  class_path: ptbxlae.dataprocessing.dataModules.PtbxlCleanDM
+  class_path: ptbxlae.dataprocessing.dataModules.SyntheticDM
   init_args:
     batch_size: 32
-    lowres: True
+    examples_per_epoch: 3200

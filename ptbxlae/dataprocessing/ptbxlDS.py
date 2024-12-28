@@ -64,31 +64,28 @@ class PtbxlDS(torch.utils.data.Dataset):
         self.root_folder = root_folder
         self.return_labels = return_labels
 
-        if self.return_labels:
-            # Get PTBXL labels
-            self.metadata.scp_codes = self.metadata.scp_codes.apply(ast.literal_eval)
+        # Get PTBXL labels
+        self.metadata.scp_codes = self.metadata.scp_codes.apply(ast.literal_eval)
 
-            # Modified from physionet example.py
-            scp_codes = pd.read_csv(f"{root_folder}/scp_statements.csv", index_col=0)
-            scp_codes = scp_codes[scp_codes.diagnostic == 1]
+        # Modified from physionet example.py
+        scp_codes = pd.read_csv(f"{root_folder}/scp_statements.csv", index_col=0)
+        scp_codes = scp_codes[scp_codes.diagnostic == 1]
 
-            self.ordered_labels = list()
+        self.ordered_labels = list()
 
-            for diagnostic_code, description in zip(
-                scp_codes.index, scp_codes.description
-            ):
-                self.ordered_labels.append(description)
-                self.metadata[description] = self.metadata.scp_codes.apply(
-                    lambda x: diagnostic_code in x.keys()
-                ).astype(float)
+        for diagnostic_code, description in zip(scp_codes.index, scp_codes.description):
+            self.ordered_labels.append(description)
+            self.metadata[description] = self.metadata.scp_codes.apply(
+                lambda x: diagnostic_code in x.keys()
+            ).astype(float)
 
     def __len__(self):
         return len(self.metadata)
 
-    def _get_label(self, index: int):
+    def _get_labels(self, index: int):
         this_meta = self.metadata.iloc[index]
         # Probably over-kill but want to make certain order of labels is consistent
-        return torch.Tensor([this_meta[c] for c in self.ordered_labels]).float()
+        return {c: this_meta[c] for c in self.ordered_labels}
 
     def __getitem__(self, index: int):
         # Outputs ECG data of shape sig_len x num_leads (e.g. for low res 1000 x 12)
@@ -97,7 +94,20 @@ class PtbxlDS(torch.utils.data.Dataset):
         sig, sigmeta = load_single_record(
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
-        return torch.Tensor(sig).transpose(1, 0).float()
+
+        if self.return_labels:
+            labels = self._get_labels(index)
+        else:
+            labels = {}
+
+        return torch.Tensor(sig).transpose(1, 0).float(), labels
+
+    def set_return_labels(self, return_labels: bool):
+        """Set return labels flag
+        Args:
+            return_labels (bool): If true, dataset will return true labels instead of dummies
+        """
+        self.return_labels = return_labels
 
 
 class PtbxlCleanDS(PtbxlDS):
@@ -118,92 +128,9 @@ class PtbxlCleanDS(PtbxlDS):
         sig_clean = self._clean(sig, sigmeta)
 
         if self.return_labels:
-            return torch.Tensor(sig_clean).float(), self._get_label(index)
+            return torch.Tensor(sig_clean).float(), self._get_labels(index)
         else:
-            return torch.Tensor(sig_clean).float()
-
-
-class PtbxlSigWithRpeaksDS(PtbxlDS):
-
-    def __init__(
-        self, root_folder="./data", lowres=False, smoothing=False, stacked=False
-    ):
-        super().__init__(root_folder, lowres)
-
-        self.stacked = stacked
-        self.smoothing = smoothing
-
-    def __getitem__(self, index):
-        this_meta = self.metadata.iloc[index]
-        ecg_id = this_meta["ecg_id"]
-        sig, sigmeta = load_single_record(
-            ecg_id, lowres=self.lowres, root_dir=self.root_folder
-        )
-
-        sig_clean = np.apply_along_axis(
-            nk.ecg_clean, 1, sig.transpose(), sampling_rate=sigmeta["fs"]
-        )
-
-        # def get_rpeaks_binary(sig_in):
-        #     info = nk.ecg_findpeaks(sig_in, sampling_rate=sigmeta["fs"])
-        #     rpeaks = np.zeros_like(sig_clean[0, :])
-        #     rpeaks[info["ECG_R_Peaks"]] = 1
-
-        #     return rpeaks
-
-        # rpeaks_all_channels = np.apply_along_axis(get_rpeaks_binary, 1, sig_clean)
-
-        info = nk.ecg_findpeaks(sig_clean[1], sampling_rate=sigmeta["fs"])
-        rpeaks = np.zeros_like(sig_clean[1, :])
-        rpeaks[info["ECG_R_Peaks"]] = 1
-
-        if self.smoothing:
-            raise NotImplementedError()
-
-        if self.stacked:
-            return torch.concat(
-                (
-                    torch.Tensor(sig_clean[1, :]).unsqueeze(dim=0).float(),
-                    torch.Tensor(rpeaks).unsqueeze(dim=0).float(),
-                ),
-                dim=0,
-            )
-
-        else:
-
-            return (
-                torch.Tensor(sig_clean).float(),
-                torch.Tensor(rpeaks).float(),
-            )
-
-
-class PtbxlSmallSig(PtbxlCleanDS):
-
-    def __init__(
-        self, root_folder="./data", seq_len: int = None, single_channel: bool = False
-    ):
-        super().__init__(root_folder, lowres=True)
-
-        if seq_len and seq_len > 1000:
-            raise ValueError(
-                f"Invalid seq_len {seq_len}. Do not use this dataset to create signals longer than 1000"
-            )
-
-        self.seq_len = seq_len
-        self.single_channel = single_channel
-
-    def __getitem__(self, index):
-        sig = super().__getitem__(index)
-
-        smallsig = sig
-
-        if self.seq_len:
-            smallsig = smallsig[:, 0 : self.seq_len]
-
-        if self.single_channel:
-            smallsig = smallsig[1, :]
-
-        return smallsig
+            return torch.Tensor(sig_clean).float(), {}
 
 
 if __name__ == "__main__":
