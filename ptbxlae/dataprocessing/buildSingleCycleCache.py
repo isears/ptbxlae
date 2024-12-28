@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 class PtbxlSingleCycleCachingDS(torch.utils.data.Dataset):
 
-    def __init__(self, root_folder: str = "./data", seq_len: int = 500):
+    def __init__(self, root_folder: str = "./data/ptbxl", seq_len: int = 500):
         super().__init__()
 
         self.root_folder = root_folder

@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 import ecg_plot
 
 
-def load_single_record(id: int = 1, lowres: bool = True, root_dir: str = "./data"):
+def load_single_record(
+    id: int = 1, lowres: bool = True, root_dir: str = "./data/ptb-xl"
+):
     id_str = "{:05d}".format(id)
     prefix_dir = f"{id_str[:2]}000"
 
