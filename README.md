@@ -47,7 +47,7 @@ If running existing configs without Neptune, override logger on CLI, e.g.:
 
 ```bash
 # CLI logging only
-python main.py --config configs/scc_defaults.yaml --trainer.logger=False
+python main.py --config configs/single_cycle.yaml --trainer.logger=false
 ```
 
 
@@ -58,10 +58,10 @@ python main.py --config configs/scc_defaults.yaml --trainer.logger=False
 mkdir -p cache/savedmodels
 
 # Run training with single-cycle configuration
-python main.py fit --config configs/scc_defaults.yaml
+python main.py fit --config configs/single_cycle.yaml
 
 # Run synthetic data training
-python main.py fit --config configs/synthetic_multichannel.yaml
+python main.py fit --config configs/synthetic_base.yaml
 ```
 
 - Best model by validation loss will be saved to cache/savedmodels

@@ -1,0 +1,17 @@
+# Best params from 24-hr optuna run, sum reduction validation loss 345.5687561035156
+
+model:
+  class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
+  init_args:
+    latent_dim: 40
+    conv_depth: 2
+    fc_depth: 2
+    kernel_size: 13
+    dropout: null
+    batchnorm: False
+    lr: 4.7491754446145785e-05
+
+data:
+  class_path: ptbxlae.dataprocessing.dataModules.SingleCycleCachedDM
+  init_args:
+    batch_size: 8

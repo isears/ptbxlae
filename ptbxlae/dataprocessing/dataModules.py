@@ -39,7 +39,11 @@ class BaseDM(L.LightningDataModule):
         )
 
     def test_dataloader(self):
-        self.test_ds.dataset.set_return_labels(True)
+        if hasattr(self.test_ds.dataset, "set_return_labels") and callable(
+            self.test_ds.dataset.set_return_labels
+        ):
+            self.test_ds.dataset.set_return_labels(True)
+
         return DataLoader(
             self.test_ds, num_workers=self.cores_available, batch_size=self.batch_size
         )

@@ -22,10 +22,10 @@ class LatentRepresentationUtilityMetric(Metric):
             for k, v in labels.items():
                 self.labels[k].append(v)
 
-    def compute(self) -> torch.Tensor:
+    def compute(self) -> dict:
         # TODO: log 2D scatter plot of latent representations with labels
         if len(self.labels) == 0:
-            return float("nan")
+            return {}
 
         ret = {}
         collected_latent_representations = torch.cat(
