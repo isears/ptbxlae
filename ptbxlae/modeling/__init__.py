@@ -173,7 +173,7 @@ class BaseVAE(L.LightningModule, ABC):
     def on_test_epoch_end(self):
         label_evals = self.test_label_evaluator.compute()
         for label, score in label_evals.items():
-            self.log(f"AUROC ({label})", score)
+            self.log(f"test/AUROC ({label})", score)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)

@@ -1,4 +1,5 @@
 
+chkpt_path: ./cache/savedmodels/synthetic-pretrained.ckpt
 trainer:
   max_time: 00:47:00:00
   gradient_clip_val: 4.0
@@ -18,14 +19,14 @@ trainer:
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
         patience: 5
-        monitor: val_loss
+        monitor: val/loss
     - class_path: ptbxlae.modeling.NeptuneUploadingModelCheckpoint
       init_args:
         save_top_k: 1
-        monitor: val_loss
+        monitor: val/loss
         mode: min
         dirpath: ./cache/savedmodels/
-        filename: synthetic-mc-{epoch:03d}-{val_loss:.6f}
+        filename: synthetic-mc-{epoch:03d}-{val/loss:.6f}
 
 model:
   class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE

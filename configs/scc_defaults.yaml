@@ -8,7 +8,7 @@ fit:
       - class_path: lightning.pytorch.callbacks.EarlyStopping
         init_args:
           patience: 5
-          monitor: val_loss
+          monitor: val/loss
       - class_path: lightning.pytorch.callbacks.ModelCheckpoint
         init_args:
           dirpath: ./cache/savedmodels/

@@ -33,11 +33,11 @@ trainer:
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
         patience: 5
-        monitor: val_loss
+        monitor: val/loss
     - class_path: ptbxlae.modeling.NeptuneUploadingModelCheckpoint
       init_args:
         save_top_k: 1
-        monitor: val_loss
+        monitor: val/loss
         mode: min
         dirpath: ./cache/savedmodels/
-        filename: scc-{epoch:03d}-{val_loss:.6f}
+        filename: scc-{epoch:03d}-{val/loss:.6f}

@@ -57,12 +57,11 @@ python main.py --config configs/scc_defaults.yaml --trainer.logger=False
 # Setup cache directory (first-time only)
 mkdir -p cache/savedmodels
 
-# Run train / test with single-cycle configuration
-python main.py --config configs/scc_defaults.yaml
+# Run training with single-cycle configuration
+python main.py fit --config configs/scc_defaults.yaml
 
-# Run synthetic data train / test
-python main.py --config configs/synthetic_multichannel.yaml
+# Run synthetic data training
+python main.py fit --config configs/synthetic_multichannel.yaml
 ```
 
 - Best model by validation loss will be saved to cache/savedmodels
-- Training logs in lightning_logs/

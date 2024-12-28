@@ -12,10 +12,10 @@ fit:
       - class_path: lightning.pytorch.callbacks.ModelCheckpoint
         init_args:
           save_top_k: 1
-          monitor: val_loss
+          monitor: val/loss
           mode: min
           dirpath: ./cache/savedmodels/
-          filename: mcc-{epoch:03d}-{val_loss:.6f}
+          filename: mcc-{epoch:03d}-{val/loss:.6f}
 
   model:
     class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
