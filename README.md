@@ -65,3 +65,9 @@ python main.py fit --config configs/synthetic_base.yaml
 ```
 
 - Best model by validation loss will be saved to cache/savedmodels
+
+## Testing Models
+
+```bash
+python main.py test --config path/to/original/config.yaml --ckpt_path cache/savedmodels/checkpoint_name_here.ckpt
+```

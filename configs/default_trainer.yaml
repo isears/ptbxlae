@@ -15,6 +15,7 @@ fit:
           monitor: val/loss
       - class_path: ptbxlae.modeling.NeptuneUploadingModelCheckpoint
         init_args:
+          log_sample_reconstructions: False
           save_top_k: 1
           monitor: val/loss
           mode: min

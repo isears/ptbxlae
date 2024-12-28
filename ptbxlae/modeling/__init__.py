@@ -23,42 +23,50 @@ class SumReducingSoftDTWLoss(SoftDTWLossPyTorch):
 
 
 class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
-    num_examples = 12
+
+    def __init__(
+        self, log_sample_reconstructions: bool, num_examples: int = 12, **kwargs
+    ):
+        super().__init__(**kwargs)
+
+        self.log_sample_reconstructions = log_sample_reconstructions
+        self.num_examples = num_examples
 
     def on_train_start(self, trainer, pl_module):
-
-        self.example_batch = torch.stack(
-            [
-                trainer.val_dataloaders.dataset[idx][0]
-                for idx in range(0, self.num_examples)
-            ]
-        )
+        if self.log_sample_reconstructions:
+            self.example_batch = torch.stack(
+                [
+                    trainer.val_dataloaders.dataset[idx][0]
+                    for idx in range(0, self.num_examples)
+                ]
+            )
 
         return super().on_train_start(trainer, pl_module)
 
     def on_save_checkpoint(self, trainer, pl_module, checkpoint):
-        pl_module.eval()
-        with torch.no_grad():
-            recon, _, _ = pl_module(self.example_batch.to("cuda"))
+        if self.log_sample_reconstructions:
+            pl_module.eval()
+            with torch.no_grad():
+                recon, _, _ = pl_module(self.example_batch.to("cuda"))
 
-        for idx in range(0, self.example_batch.shape[0]):
-            # ensure distribution over available channels while never exceeding number of channels
-            channel_idx = idx % recon.shape[1]
+            for idx in range(0, self.example_batch.shape[0]):
+                # ensure distribution over available channels while never exceeding number of channels
+                channel_idx = idx % recon.shape[1]
 
-            fig, ax = plt.subplots()
-            x = range(0, recon.shape[-1])
-            ax.plot(x, self.example_batch[idx, channel_idx, :], label="original")
-            ax.plot(x, recon[idx, channel_idx, :].to("cpu"), label="reconstruction")
-            fig.suptitle(f"Epoch {trainer.current_epoch}")
+                fig, ax = plt.subplots()
+                x = range(0, recon.shape[-1])
+                ax.plot(x, self.example_batch[idx, channel_idx, :], label="original")
+                ax.plot(x, recon[idx, channel_idx, :].to("cpu"), label="reconstruction")
+                fig.suptitle(f"Epoch {trainer.current_epoch}")
 
-            if type(trainer.logger) == NeptuneLogger:
-                trainer.logger.experiment[
-                    f"val/reconstructions/epoch-{trainer.current_epoch}/example-{idx}"
-                ].upload(File.as_html(fig))
+                if type(trainer.logger) == NeptuneLogger:
+                    trainer.logger.experiment[
+                        f"val/reconstructions/epoch-{trainer.current_epoch}/example-{idx}"
+                    ].upload(File.as_html(fig))
 
-            plt.close(fig=fig)
+                plt.close(fig=fig)
 
-        pl_module.train()
+            pl_module.train()
 
         return super().on_save_checkpoint(trainer, pl_module, checkpoint)
 
@@ -66,7 +74,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
         self.best_model_path
 
         # Only save model once at end of training to avoid overhead / delays associated with uploading every model checkpoint
-        if type(trainer.logger) == NeptuneLogger:
+        if type(trainer.logger) == NeptuneLogger and self.log_sample_reconstructions:
             trainer.logger.experiment["model/checkpoints/best"].upload(
                 self.best_model_path
             )
