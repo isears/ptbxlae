@@ -4,10 +4,13 @@ import torch
 from ptbxlae.dataprocessing.ptbxlDS import *
 from ptbxlae.dataprocessing.cachedDS import *
 from ptbxlae.dataprocessing.nkSyntheticDS import *
+from ptbxlae.dataprocessing.mimicDS import *
 
 
 class BaseDM(L.LightningDataModule):
-    def __init__(self, root_folder: str = "./data", batch_size: int = 32, **kwargs):
+    def __init__(
+        self, root_folder: str = "./data/ptbxl", batch_size: int = 32, **kwargs
+    ):
         super().__init__()
         self.root_folder = root_folder
         self.batch_size = batch_size
@@ -55,7 +58,7 @@ class PtbxlDM(BaseDM):
 
 
 class PtbxlCleanDM(BaseDM):
-    def __init__(self, root_folder="./data", batch_size=32, lowres=False):
+    def __init__(self, root_folder="./data/ptbxl", batch_size=32, lowres=False):
         super().__init__(root_folder, batch_size)
 
         self.lowres = lowres
@@ -84,6 +87,11 @@ class SyntheticDM(BaseDM):
 class SingleChannelSyntheticDM(BaseDM):
     def _get_ds(self):
         return SinglechannelSyntheticDS(**self.kwargs)
+
+
+class MimicDM(BaseDM):
+    def _get_ds(self):
+        return MimicDS(**self.kwargs)
 
 
 def load_testset_to_mem(root_folder: str = "./data"):

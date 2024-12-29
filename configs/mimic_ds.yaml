@@ -1,0 +1,3 @@
+class_path: ptbxlae.dataprocessing.dataModules.MimicDM
+init_args:
+  batch_size: 32

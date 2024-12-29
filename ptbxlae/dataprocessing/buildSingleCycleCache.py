@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 import torch
 import pandas as pd
 import os
-from ptbxlae.dataprocessing import load_single_record
+from ptbxlae.dataprocessing import load_single_ptbxl_record
 import neurokit2 as nk
 import numpy as np
 from tqdm import tqdm
@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 class PtbxlSingleCycleCachingDS(torch.utils.data.Dataset):
 
-    def __init__(self, root_folder: str = "./data", seq_len: int = 500):
+    def __init__(self, root_folder: str = "./data/ptbxl", seq_len: int = 500):
         super().__init__()
 
         self.root_folder = root_folder
@@ -30,7 +30,7 @@ class PtbxlSingleCycleCachingDS(torch.utils.data.Dataset):
 
         cache_dir = f"./cache/singlecycle_data/{pt_id:05d}/{ecg_id:05d}"
 
-        sig, sigmeta = load_single_record(
+        sig, sigmeta = load_single_ptbxl_record(
             ecg_id, lowres=False, root_dir=self.root_folder
         )
 

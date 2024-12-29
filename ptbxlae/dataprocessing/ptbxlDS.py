@@ -1,7 +1,7 @@
 import torch
 import pandas as pd
 import os
-from ptbxlae.dataprocessing import load_single_record
+from ptbxlae.dataprocessing import load_single_ptbxl_record
 import neurokit2 as nk
 import numpy as np
 import ast
@@ -10,14 +10,14 @@ import ast
 class PtbxlDS(torch.utils.data.Dataset):
     def __init__(
         self,
-        root_folder: str = "./data",
+        root_folder: str = "./data/ptbxl",
         lowres: bool = False,
         return_labels: bool = False,
     ):
         """Base PTBXL dataset initialization
 
         Args:
-            root_folder (str, optional): Path to PTBXL data. Defaults to "./data".
+            root_folder (str, optional): Path to PTBXL data. Defaults to "./data/ptbxl".
             lowres (bool, optional): Whether to use the 100Hz (True) or 500Hz (False) data. Defaults to False.
             return_labels (bool, optional): Whether to return diagnostic labels for each EKG. Label returning was made optional because it is not necessary for the autoencoder training loop and will probably slow down the dataloaders significantly. Defaults to False.
 
@@ -91,7 +91,7 @@ class PtbxlDS(torch.utils.data.Dataset):
         # Outputs ECG data of shape sig_len x num_leads (e.g. for low res 1000 x 12)
         this_meta = self.metadata.iloc[index]
         ecg_id = this_meta["ecg_id"]
-        sig, sigmeta = load_single_record(
+        sig, sigmeta = load_single_ptbxl_record(
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
 
@@ -121,7 +121,7 @@ class PtbxlCleanDS(PtbxlDS):
     def __getitem__(self, index: int):
         this_meta = self.metadata.iloc[index]
         ecg_id = this_meta["ecg_id"]
-        sig, sigmeta = load_single_record(
+        sig, sigmeta = load_single_ptbxl_record(
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
 

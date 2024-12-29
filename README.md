@@ -9,13 +9,8 @@
 
 ## Downloading Data
 
-Ensure PTB-XL data is downloaded to ./data (see https://physionet.org/content/ptb-xl/1.0.3/)
-
-```bash
-mkdir data
-cd data
-wget -r -N -c -np https://physionet.org/files/ptb-xl/1.0.3/
-```
+Download PTB-XL data to `./data/ptbxl` (see https://physionet.org/content/ptb-xl/1.0.3/)
+Download MIMIC IV ECG to `./data/mimiciv-ecg` (see https://physionet.org/content/mimic-iv-ecg/1.0/)
 
 ## Building Cache
 

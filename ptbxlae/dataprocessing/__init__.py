@@ -1,9 +1,12 @@
 import wfdb
 import matplotlib.pyplot as plt
 import ecg_plot
+import numpy as np
 
 
-def load_single_record(id: int = 1, lowres: bool = True, root_dir: str = "./data"):
+def load_single_ptbxl_record(
+    id: int = 1, lowres: bool = True, root_dir: str = "./data/ptb-xl"
+):
     id_str = "{:05d}".format(id)
     prefix_dir = f"{id_str[:2]}000"
 
@@ -26,5 +29,5 @@ def plot_raw_data(sig, sigmeta, savefile: str = None):
 
 
 def plot_single_record(id: int = 1, lowres: bool = True, savefile: str = None):
-    sig, sigmeta = load_single_record(id=id, lowres=lowres)
+    sig, sigmeta = load_single_ptbxl_record(id=id, lowres=lowres)
     plot_raw_data(sig, sigmeta)
