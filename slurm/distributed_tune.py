@@ -75,7 +75,13 @@ if __name__ == "__main__":
                     )
 
                 jobid = s.sbatch(
-                    f"python {args.script_path} --timelimit {job_timelimit.total_seconds() / 60}",
+                    f"""
+                    source ~/.bashrc
+                    conda activate ptbxlae
+                    which python
+                    pwd -P
+                    python {args.script_path} --timelimit {job_timelimit.total_seconds() / 60}
+                    """,
                     verbose=False,
                 )
                 joblist.append(jobid)

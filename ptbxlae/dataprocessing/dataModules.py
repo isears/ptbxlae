@@ -9,12 +9,21 @@ from ptbxlae.dataprocessing.mimicDS import *
 
 class BaseDM(L.LightningDataModule):
     def __init__(
-        self, root_folder: str = "./data/ptbxl", batch_size: int = 32, **kwargs
+        self,
+        root_folder: str = "./data/ptbxl",
+        batch_size: int = 32,
+        train_split: float = 0.8,
+        valid_split: float = 0.1,
+        test_split: float = 0.1,
+        **kwargs,
     ):
         super().__init__()
         self.root_folder = root_folder
         self.batch_size = batch_size
         self.cores_available = len(os.sched_getaffinity(0))
+        self.train_split = train_split
+        self.valid_split = valid_split
+        self.test_split = test_split
         self.kwargs = kwargs
 
         print(f"Initializing DM with {self.cores_available} workers")
@@ -28,7 +37,9 @@ class BaseDM(L.LightningDataModule):
         ds = self._get_ds()
 
         self.train_ds, self.valid_ds, self.test_ds = random_split(
-            ds, [0.8, 0.1, 0.1], generator=torch.Generator().manual_seed(42)
+            ds,
+            [self.train_split, self.valid_split, self.test_split],
+            generator=torch.Generator().manual_seed(42),
         )
 
     def train_dataloader(self):
@@ -69,9 +80,12 @@ class PtbxlCleanDM(BaseDM):
 
 class SingleCycleCachedDM(BaseDM):
     def __init__(
-        self, cache_folder: str = "./cache/singlecycle_data", batch_size: int = 32
+        self,
+        cache_folder: str = "./cache/singlecycle_data",
+        batch_size: int = 32,
+        **kwargs,
     ):
-        super().__init__()
+        super(**kwargs).__init__()
         self.cache_folder = cache_folder
         self.batch_size = batch_size
 
@@ -87,6 +101,11 @@ class SyntheticDM(BaseDM):
 class SingleChannelSyntheticDM(BaseDM):
     def _get_ds(self):
         return SinglechannelSyntheticDS(**self.kwargs)
+
+
+class SyntheticCachedDM(BaseDM):
+    def _get_ds(self):
+        return SyntheticCachedDS(**self.kwargs)
 
 
 class MimicDM(BaseDM):
