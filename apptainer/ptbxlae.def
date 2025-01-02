@@ -1,0 +1,18 @@
+Bootstrap: docker
+From: python:3.11.11-slim-bookworm
+
+%files
+    # Need to avoid ./cache, ./data, and ./lightning_logs but afaik there's no way to exclude directories with apptainer
+    ./ptbxlae /app/ptbxlae
+    ./requirements.txt /app/requirements.txt
+    ./main.py /app/main.py
+    ./configs /app/configs
+    ./tuning /app/tuning
+    ./setup.py /app/setup.py
+    ./README.md /app/README.md
+
+%post
+    cd /app
+    pip install -r requirements.txt
+    pip install ./
+    echo "export APPTAINER_BINDPATH=\"./data/ptbxl:./data/ptbxl,./data/mimiciv-ecg:./data/mimiciv-ecg\"" >> $APPTAINER_ENVIRONMENT
