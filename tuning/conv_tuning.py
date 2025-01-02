@@ -1,6 +1,6 @@
 import optuna
 from ptbxlae.modeling.convolutionalVAE import ConvolutionalEcgVAE
-from ptbxlae.dataprocessing.dataModules import SyntheticCachedDM
+from ptbxlae.dataprocessing.dataModules import MimicDM
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import NeptuneLogger
@@ -24,6 +24,8 @@ def objective(trial: optuna.trial.Trial) -> float:
         dropout = None
 
     model = ConvolutionalEcgVAE(
+        latent_dim=100,
+        seq_len=1000,
         lr=lr,
         kernel_size=kernel_size,
         conv_depth=conv_depth,
@@ -32,15 +34,13 @@ def objective(trial: optuna.trial.Trial) -> float:
         dropout=dropout,
     )
 
-    dm = SyntheticCachedDM(
-        batch_size=batch_size, train_split=0.9, valid_split=0.1, test_split=0.0
-    )
+    dm = MimicDM(batch_size=batch_size)
     es = EarlyStopping(monitor="val_loss", patience=5, mode="min")
 
     trainer = pl.Trainer(
         logger=NeptuneLogger(
             project="isears/ptbxlae",
-            name=f"optuna-{trial.number}",
+            name=f"10sMIMIC-tuning-{trial.number}",
             log_model_checkpoints=False,
             tags=["tuning"],
         ),
@@ -86,8 +86,8 @@ if __name__ == "__main__":
 
     # study = optuna.create_study(direction="minimize", pruner=optuna.pruners.NopPruner())
     study = optuna.create_study(
-        study_name="synthetic-cvae",
-        storage="sqlite:///cache/synthetic-cvae.db",
+        study_name="mimic-cvae",
+        storage="sqlite:///cache/mimic-cvae.db",
         direction="minimize",
         load_if_exists=True,
     )

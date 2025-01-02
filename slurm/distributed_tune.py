@@ -39,18 +39,38 @@ def refresh_active_joblist(job_ids: list[int]):
     return [j for j in job_ids if j in active_jobs]
 
 
+def check_none_failed(job_ids: list[int]):
+    # sacct -n -X -j 7492626,7492628,7492643
+    result = subprocess.run(
+        ["sacct", "-n", "-X", "-j", ",".join([str(id) for id in job_ids])],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"Error running sacct: {result.stderr.strip()}")
+
+    result_raw = result.stdout.strip()
+
+    for line in result_raw.split("\n"):
+        if "FAILED" in line:
+            raise RuntimeError("Detected Failed job")
+
+
 if __name__ == "__main__":
     args = parse_args()
 
-    joblist = list()
+    active_joblist = list()
+    all_joblist = list()
     total_jobcount = 0
     job_timelimit = datetime.timedelta(hours=12)
 
     while True:
         try:
-            joblist = refresh_active_joblist(joblist)
+            active_joblist = refresh_active_joblist(active_joblist)
 
-            if len(joblist) < args.max_jobs:
+            if len(active_joblist) < args.max_jobs:
 
                 if args.debug:
                     job_timelimit = datetime.timedelta(seconds=30)
@@ -84,15 +104,19 @@ if __name__ == "__main__":
                     """,
                     verbose=False,
                 )
-                joblist.append(jobid)
+                active_joblist.append(jobid)
+                all_joblist.append(jobid)
 
                 print(f"Starting job: {jobid} with timelimit {str(job_timelimit)}")
                 total_jobcount += 1
+
+                # Once per iteration make sure we aren't just spawning failed jobs
+                check_none_failed(all_joblist)
         except KeyboardInterrupt:
             print("Shutting down...")
             print(f"Launched {total_jobcount} jobs")
             print("Remaining active jobs:")
-            for j in joblist:
+            for j in active_joblist:
                 print(j)
 
             quit()
