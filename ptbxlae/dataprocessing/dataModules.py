@@ -1,46 +1,28 @@
 import lightning as L
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader, random_split
 import torch
 from ptbxlae.dataprocessing.ptbxlDS import *
 from ptbxlae.dataprocessing.cachedDS import *
 from ptbxlae.dataprocessing.nkSyntheticDS import *
 from ptbxlae.dataprocessing.mimicDS import *
+from typing import Type, Optional
 
 
 class BaseDM(L.LightningDataModule):
-    def __init__(
-        self,
-        root_folder: str = "./data/ptbxl",
-        batch_size: int = 32,
-        train_split: float = 0.8,
-        valid_split: float = 0.1,
-        test_split: float = 0.1,
-        **kwargs,
-    ):
+    def __init__(self, batch_size: int = 32, workers: Optional[int] = None):
         super().__init__()
-        self.root_folder = root_folder
+
         self.batch_size = batch_size
-        self.cores_available = len(os.sched_getaffinity(0))
-        self.train_split = train_split
-        self.valid_split = valid_split
-        self.test_split = test_split
-        self.kwargs = kwargs
+
+        if workers:
+            self.cores_available = workers
+        else:
+            self.cores_available = len(os.sched_getaffinity(0))
 
         print(f"Initializing DM with {self.cores_available} workers")
 
-    def _get_ds(self):
-        raise NotImplementedError(
-            "Base DM called, need to call a subclass that implements _get_ds()"
-        )
-
     def setup(self, stage: str):
-        ds = self._get_ds()
-
-        self.train_ds, self.valid_ds, self.test_ds = random_split(
-            ds,
-            [self.train_split, self.valid_split, self.test_split],
-            generator=torch.Generator().manual_seed(42),
-        )
+        raise NotImplementedError("Base DM not subclassed!")
 
     def train_dataloader(self):
         return DataLoader(
@@ -53,6 +35,7 @@ class BaseDM(L.LightningDataModule):
         )
 
     def test_dataloader(self):
+        # If the dataset (i.e. ptbxl) has computationally expensive labels to return, we only want to do that during the test phase
         if hasattr(self.test_ds.dataset, "set_return_labels") and callable(
             self.test_ds.dataset.set_return_labels
         ):
@@ -63,60 +46,37 @@ class BaseDM(L.LightningDataModule):
         )
 
 
-class PtbxlDM(BaseDM):
-    def _get_ds(self):
-        return PtbxlDS(root_folder=self.root_folder, lowres=False)
-
-
-class PtbxlCleanDM(BaseDM):
-    def __init__(self, root_folder="./data/ptbxl", batch_size=32, lowres=False):
-        super().__init__(root_folder, batch_size)
-
-        self.lowres = lowres
-
-    def _get_ds(self):
-        return PtbxlCleanDS(root_folder=self.root_folder, lowres=self.lowres)
-
-
-class SingleCycleCachedDM(BaseDM):
+class DefaultDM(BaseDM):
     def __init__(
         self,
-        cache_folder: str = "./cache/singlecycle_data",
-        batch_size: int = 32,
-        **kwargs,
+        ds_cls: Type[Dataset],
+        train_valid_test_splits: tuple = (0.8, 0.1, 0.1),
+        **ds_kwargs,
     ):
-        super(**kwargs).__init__()
-        self.cache_folder = cache_folder
-        self.batch_size = batch_size
+        super().__init__()
+        self.train_valid_test_splits = train_valid_test_splits
+        self.core_ds = ds_cls(**ds_kwargs)
 
-    def _get_ds(self):
-        return SingleCycleCachedDS(cache_path=self.cache_folder)
-
-
-class SyntheticDM(BaseDM):
-    def _get_ds(self):
-        return NkSyntheticDS(**self.kwargs)
-
-
-class SingleChannelSyntheticDM(BaseDM):
-    def _get_ds(self):
-        return SinglechannelSyntheticDS(**self.kwargs)
+    def setup(self, stage: str):
+        self.train_ds, self.valid_ds, self.test_ds = random_split(
+            self.core_ds,
+            [0.8, 0.1, 0.1],
+            generator=torch.Generator().manual_seed(42),
+        )
 
 
-class SyntheticCachedDM(BaseDM):
-    def _get_ds(self):
-        return SyntheticCachedDS(**self.kwargs)
+class MimicTrainPtbxlTestDM(BaseDM):
+    def __init__(self):
+        super().__init__()
 
+    def setup(self, stage: str):
+        mimic_ds = MimicDS(**self.kwargs)
+        ptbxl_ds = PtbxlDS(**self.kwargs)
 
-class MimicDM(BaseDM):
-    def _get_ds(self):
-        return MimicDS(**self.kwargs)
+        self.train_ds, self.valid_ds = random_split(
+            mimic_ds,
+            [0.9, 0.1],
+            generator=torch.Generator().manual_seed(42),
+        )
 
-
-def load_testset_to_mem(root_folder: str = "./data"):
-    dm = PtbxlDM(root_folder=root_folder)
-    dm.setup(stage="test")
-    dl = dm.test_dataloader()
-
-    all_batches = [x for x in dl]
-    return torch.cat(all_batches)
+        self.test_ds = ptbxl_ds
