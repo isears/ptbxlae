@@ -1,0 +1,6 @@
+# Not expected to perform. For running quick end-to-end tests
+data:
+  class_path: ptbxlae.dataprocessing.dataModules.SyntheticDM
+  init_args:
+    batch_size: 32
+    examples_per_epoch: 64
