@@ -49,13 +49,13 @@ class BaseDM(L.LightningDataModule):
 class DefaultDM(BaseDM):
     def __init__(
         self,
-        ds_cls: Type[Dataset],
-        train_valid_test_splits: tuple = (0.8, 0.1, 0.1),
-        **ds_kwargs,
+        ds: Dataset,
+        train_valid_test_splits: tuple[float, float, float] = (0.8, 0.1, 0.1),
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.train_valid_test_splits = train_valid_test_splits
-        self.core_ds = ds_cls(**ds_kwargs)
+        self.core_ds = ds
 
     def setup(self, stage: str):
         self.train_ds, self.valid_ds, self.test_ds = random_split(
@@ -66,8 +66,8 @@ class DefaultDM(BaseDM):
 
 
 class MimicTrainPtbxlTestDM(BaseDM):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def setup(self, stage: str):
         mimic_ds = MimicDS(**self.kwargs)

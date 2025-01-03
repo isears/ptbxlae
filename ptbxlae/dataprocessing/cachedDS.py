@@ -32,21 +32,25 @@ class SingleCycleCachedDS(torch.utils.data.Dataset):
 
         available_ecg_paths = glob.glob(f"{self.cache_path}/{pid}/*")
 
-        ecg_idx = torch.randint(
-            low=0,
-            high=len(available_ecg_paths),
-            size=(1,),
-            generator=self.random_generator,
-        ).item()
+        ecg_idx = int(
+            torch.randint(
+                low=0,
+                high=len(available_ecg_paths),
+                size=(1,),
+                generator=self.random_generator,
+            ).item()
+        )
 
         available_cycle_paths = glob.glob(f"{available_ecg_paths[ecg_idx]}/*")
 
-        cycle_idx = torch.randint(
-            low=0,
-            high=len(available_cycle_paths),
-            size=(1,),
-            generator=self.random_generator,
-        ).item()
+        cycle_idx = int(
+            torch.randint(
+                low=0,
+                high=len(available_cycle_paths),
+                size=(1,),
+                generator=self.random_generator,
+            ).item()
+        )
 
         if self.randomness:
             df = pd.read_parquet(f"{available_cycle_paths[cycle_idx]}")
