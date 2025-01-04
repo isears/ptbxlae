@@ -13,6 +13,8 @@ from torch.nn import (
     Dropout,
 )
 
+from typing import Optional
+
 from torchinfo import summary
 from dataclasses import dataclass
 
@@ -93,7 +95,7 @@ class ConvolutionalEcgEncoder(torch.nn.Module):
         self,
         shared_params: ConvolutionalEcgEncoderDecoderSharedParams,
         batchnorm: bool = False,
-        dropout: bool = False,
+        dropout: Optional[float] = None,
         include_final_layer: bool = False,
     ):
         super().__init__()
@@ -164,7 +166,7 @@ class ConvolutionalEcgDecoder(torch.nn.Module):
         self,
         shared_params: ConvolutionalEcgEncoderDecoderSharedParams,
         batchnorm: bool = False,
-        dropout: bool = False,
+        dropout: Optional[float] = None,
     ):
         super().__init__()
 

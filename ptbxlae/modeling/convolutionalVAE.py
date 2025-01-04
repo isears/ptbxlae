@@ -1,5 +1,6 @@
 import torch
 from torch.nn import Linear, Sequential, LeakyReLU, Sigmoid
+from typing import Optional
 
 from ptbxlae.modeling import BaseVAE
 from ptbxlae.modeling.convolutionalModules import (
@@ -25,7 +26,7 @@ class ConvolutionalEcgVAE(BaseVAE):
         fc_depth: int = 1,
         fc_scale_factor: int = 4,
         batchnorm: bool = False,
-        dropout: float = None,
+        dropout: Optional[float] = None,
         **kwargs,
     ):
         super(ConvolutionalEcgVAE, self).__init__(**kwargs)
