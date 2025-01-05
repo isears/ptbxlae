@@ -1,0 +1,19 @@
+# Achieved 0.0104725 validation MSE during hyperparameter tuning
+model:
+  class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
+  init_args:
+    latent_dim: 100
+    conv_depth: 3
+    fc_depth: 1
+    fc_scale_factor: 4
+    kernel_size: 11
+    dropout: null
+    batchnorm: False
+    lr: 0.00009651388297379681
+    n_channels: 12
+    seq_len: 1000
+
+data:
+  class_path: ptbxlae.dataprocessing.dataModules.MimicTrainPtbxlTestDM
+  init_args:
+    batch_size: 26

@@ -70,8 +70,8 @@ class MimicTrainPtbxlTestDM(BaseDM):
         super().__init__(**kwargs)
 
     def setup(self, stage: str):
-        mimic_ds = MimicDS(**self.kwargs)
-        ptbxl_ds = PtbxlDS(**self.kwargs)
+        mimic_ds = MimicDS()
+        ptbxl_ds = PtbxlDS(return_labels=True, lowres=True)
 
         self.train_ds, self.valid_ds = random_split(
             mimic_ds,

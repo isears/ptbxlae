@@ -2,10 +2,14 @@
 
 ## Requirements
 - Python 3.11.11
-- pytorch-lightning
-- neurokit
-- wfdb
-- jsonargparse[signatures]>=4.27.7
+- lightning: deep learning framework
+- neurokit2: for basic EKG data processing
+- wfdb: for reading EKG data files
+- jsonargparse[signatures]>=4.27.7: for pytorch lightning CLI configs
+- neptune: for logging to neptune.ai
+- tslearn: for SoftDTWLoss
+- ecg_plot: for clinically recognizable ECGs
+- torchinfo: for detailed model summaries
 
 ## Downloading Data
 
