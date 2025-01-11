@@ -16,7 +16,7 @@ def cli_main():
     )
 
     cli.trainer.fit(cli.model, cli.datamodule)
-    cli.trainer.test(cli.model, cli.datamodule)
+    cli.trainer.test(cli.model, cli.datamodule, ckpt_path="best")
 
 
 if __name__ == "__main__":

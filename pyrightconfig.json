@@ -3,5 +3,7 @@
         "data/*",
         "cache/*"
     ],
-    "reportAttributeAccessIssue": false
+    "reportAttributeAccessIssue": false,
+    "reportOptionalMemberAccess": false,
+    "reportIncompatibleMethodOverride": false
 }

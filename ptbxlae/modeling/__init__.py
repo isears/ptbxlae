@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from tslearn.metrics import SoftDTWLossPyTorch
 from torch.nn import MSELoss
 from ptbxlae.evaluation import LatentRepresentationUtilityMetric
+from typing import Optional
 
 
 class SumReducingSoftDTWLoss(SoftDTWLossPyTorch):
@@ -84,7 +85,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
 class BaseVAE(L.LightningModule, ABC):
 
-    def __init__(self, loss: torch.nn.Module = None, base_model_path: str = None):
+    def __init__(self, loss: Optional[torch.nn.Module] = None, base_model_path: Optional[str] = None):
         super(BaseVAE, self).__init__()
 
         if not loss:

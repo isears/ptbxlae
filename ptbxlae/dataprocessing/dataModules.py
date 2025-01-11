@@ -71,7 +71,6 @@ class MimicTrainPtbxlTestDM(BaseDM):
 
     def setup(self, stage: str):
         mimic_ds = MimicDS()
-        ptbxl_ds = PtbxlDS(return_labels=True, lowres=True)
 
         self.train_ds, self.valid_ds = random_split(
             mimic_ds,
@@ -79,4 +78,9 @@ class MimicTrainPtbxlTestDM(BaseDM):
             generator=torch.Generator().manual_seed(42),
         )
 
-        self.test_ds = ptbxl_ds
+
+    def test_dataloader(self):
+        ptbxl_ds = PtbxlDS(return_labels=True, lowres=True)
+        return DataLoader(
+            ptbxl_ds, num_workers=self.cores_available, batch_size=self.batch_size
+        )

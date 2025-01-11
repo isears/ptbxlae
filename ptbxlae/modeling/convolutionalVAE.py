@@ -10,6 +10,7 @@ from ptbxlae.modeling.convolutionalModules import (
 from torchinfo import summary
 
 import lightning as L
+from typing import Optional
 
 
 class ConvolutionalEcgVAE(BaseVAE):
@@ -25,7 +26,7 @@ class ConvolutionalEcgVAE(BaseVAE):
         fc_depth: int = 1,
         fc_scale_factor: int = 4,
         batchnorm: bool = False,
-        dropout: float = None,
+        dropout: Optional[float] = None,
         **kwargs,
     ):
         super(ConvolutionalEcgVAE, self).__init__(**kwargs)

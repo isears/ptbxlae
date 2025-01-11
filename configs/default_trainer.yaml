@@ -2,6 +2,8 @@ trainer:
   max_epochs: 1000
   gradient_clip_val: 4.0
   gradient_clip_algorithm: "norm"
+  devices: 1
+  num_nodes: 1
   logger:
     - class_path: lightning.pytorch.loggers.NeptuneLogger
       init_args:
