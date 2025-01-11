@@ -1,0 +1,9 @@
+{
+    "exclude": [
+        "data/*",
+        "cache/*"
+    ],
+    "reportAttributeAccessIssue": false,
+    "reportOptionalMemberAccess": false,
+    "reportIncompatibleMethodOverride": false
+}

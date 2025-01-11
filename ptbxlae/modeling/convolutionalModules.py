@@ -15,6 +15,7 @@ from torch.nn import (
 
 from torchinfo import summary
 from dataclasses import dataclass
+from typing import Optional
 
 
 # For debugging sequentials
@@ -93,7 +94,7 @@ class ConvolutionalEcgEncoder(torch.nn.Module):
         self,
         shared_params: ConvolutionalEcgEncoderDecoderSharedParams,
         batchnorm: bool = False,
-        dropout: bool = False,
+        dropout: Optional[float] = None,
         include_final_layer: bool = False,
     ):
         super().__init__()
@@ -164,7 +165,7 @@ class ConvolutionalEcgDecoder(torch.nn.Module):
         self,
         shared_params: ConvolutionalEcgEncoderDecoderSharedParams,
         batchnorm: bool = False,
-        dropout: bool = False,
+        dropout: Optional[float] = None,
     ):
         super().__init__()
 
