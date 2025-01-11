@@ -1,5 +1,17 @@
 # Best params from 24-hr optuna run, sum reduction validation loss 345.5687561035156
 
+trainer:
+  logger:
+    # - class_path: lightning.pytorch.loggers.NeptuneLogger
+    - class_path: ptbxlae.modeling.LightningCliCompatibleNeptuneLogger
+      init_args:
+        project: isears/ptbxlae
+        log_model_checkpoints: False
+        tags:
+          - "singlecycle"
+          - "ptbxl-train"
+          - "ptbxl-test"
+  
 model:
   class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
   init_args:
@@ -12,6 +24,10 @@ model:
     lr: 4.7491754446145785e-05
 
 data:
-  class_path: ptbxlae.dataprocessing.dataModules.SingleCycleCachedDM
+  class_path: ptbxlae.dataprocessing.dataModules.DefaultDM
   init_args:
+    ds:
+      class_path: ptbxlae.dataprocessing.cachedDS.SingleCycleCachedDS
+      init_args:
+        cache_path: "cache/singlecycle_data"
     batch_size: 8

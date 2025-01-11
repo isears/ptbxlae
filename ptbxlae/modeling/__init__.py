@@ -23,6 +23,31 @@ class SumReducingSoftDTWLoss(SoftDTWLossPyTorch):
         return super().forward(x, y).sum()
 
 
+class LightningCliCompatibleNeptuneLogger(NeptuneLogger):
+    def __init__(
+        self,
+        *,
+        api_key=None,
+        project=None,
+        name=None,
+        run=None,
+        log_model_checkpoints=True,
+        prefix="training",
+        tags: Optional[list] = None,
+        **neptune_run_kwargs,
+    ):
+        super().__init__(
+            api_key=api_key,
+            project=project,
+            name=name,
+            run=run,
+            log_model_checkpoints=log_model_checkpoints,
+            prefix=prefix,
+            tags=tags,
+            **neptune_run_kwargs,
+        )
+
+
 class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
     def __init__(
@@ -85,7 +110,11 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
 class BaseVAE(L.LightningModule, ABC):
 
-    def __init__(self, loss: Optional[torch.nn.Module] = None, base_model_path: Optional[str] = None):
+    def __init__(
+        self,
+        loss: Optional[torch.nn.Module] = None,
+        base_model_path: Optional[str] = None,
+    ):
         super(BaseVAE, self).__init__()
 
         if not loss:
@@ -156,7 +185,12 @@ class BaseVAE(L.LightningModule, ABC):
 
         self.log("train_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         self.log(
-            "train_mse", self.train_mse, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True
+            "train_mse",
+            self.train_mse,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
         )
 
         return loss
@@ -168,7 +202,14 @@ class BaseVAE(L.LightningModule, ABC):
         self.valid_mse.update(reconstruction, x)
 
         self.log("val_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
-        self.log("val_mse", self.valid_mse, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log(
+            "val_mse",
+            self.valid_mse,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
 
         return loss
 
@@ -183,7 +224,9 @@ class BaseVAE(L.LightningModule, ABC):
         self.test_label_evaluator.update(z, labels)
 
         self.log("test_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
-        self.log("test_mse", self.test_mse, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            "test_mse", self.test_mse, on_step=False, on_epoch=True, sync_dist=True
+        )
 
         return loss
 
