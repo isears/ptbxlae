@@ -14,10 +14,6 @@ model:
     seq_len: 1000
 
 data:
-  class_path: ptbxlae.dataprocessing.dataModules.DefaultDM
+  class_path: ptbxlae.dataprocessing.dataModules.MimicTrainPtbxlTestDM
   init_args:
-    ds:
-      class_path: ptbxlae.dataprocessing.ptbxlDS.PtbxlDS
-      init_args:
-        lowres: True
     batch_size: 213
