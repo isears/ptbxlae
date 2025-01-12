@@ -53,10 +53,6 @@ def check_none_failed(job_ids: list[int]):
 
     result_raw = result.stdout.strip()
 
-    # for line in result_raw.split("\n"):
-    #     if "FAILED" in line:
-    #         raise RuntimeError("Detected Failed job")
-
 
 if __name__ == "__main__":
     args = parse_args()

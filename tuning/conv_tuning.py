@@ -15,8 +15,8 @@ def objective(trial: optuna.trial.Trial) -> float:
     lr = trial.suggest_float("lr", 1e-8, 1e-1, log=True)
     batch_size = trial.suggest_int("batch_size", 8, 256, log=True)
     kernel_size = trial.suggest_int("kernel_size", 3, 15, step=2)
-    conv_depth = trial.suggest_int("conv_depth", 1, 5)
-    fc_depth = trial.suggest_int("linear_depth", 1, 5)
+    conv_depth = trial.suggest_int("conv_depth", 1, 10)
+    fc_depth = trial.suggest_int("linear_depth", 1, 10)
     batchnorm = trial.suggest_categorical("batchnorm", [True, False])
     dropout_on = trial.suggest_categorical("dropout_on", [True, False])
 

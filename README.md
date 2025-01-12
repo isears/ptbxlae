@@ -2,10 +2,14 @@
 
 ## Requirements
 - Python 3.11.11
-- pytorch-lightning
-- neurokit
-- wfdb
-- jsonargparse[signatures]>=4.27.7
+- lightning: deep learning framework
+- neurokit2: for basic EKG data processing
+- wfdb: for reading EKG data files
+- jsonargparse[signatures]>=4.27.7: for pytorch lightning CLI configs
+- neptune: for logging to neptune.ai
+- tslearn: for SoftDTWLoss
+- ecg_plot: for clinically recognizable ECGs
+- torchinfo: for detailed model summaries
 
 ## Downloading Data
 
@@ -52,17 +56,29 @@ python main.py --config configs/single_cycle.yaml --trainer.logger=false
 # Setup cache directory (first-time only)
 mkdir -p cache/savedmodels
 
-# Run training with single-cycle configuration
-python main.py fit --config configs/single_cycle.yaml
+# Run with single-cycle configuration
+python main.py --config configs/single_cycle.yaml
 
 # Run synthetic data training
-python main.py fit --config configs/synthetic_base.yaml
+python main.py --config configs/synthetic_base.yaml
 ```
 
 - Best model by validation loss will be saved to cache/savedmodels
 
-## Testing Models
+## Distributed Hyperparameter Tuning on Slurm
 
+First create the optuna study
+
+```bash
+optuna create-study --study-name "synthetic-ekgs" --storage "sqlite:///cache/synthetic-ekgs.db"
+```
+
+Run an example tuning script
+```bash
+python slurm/distributed_tune.py --debug
+```
+
+Check the optuna results (should optimize to 2)
 ```bash
 python main.py test --config path/to/original/config.yaml --ckpt_path cache/savedmodels/checkpoint_name_here.ckpt
 ```
@@ -82,6 +98,3 @@ python slurm/distributed_tune.py --debug
 
 Check the optuna results (should optimize to 2)
 ```bash
-optuna studies --storage "sqlite:///cache/distributed-test.db"
-optuna best-trial --storage "sqlite:///cache/distributed-test.db" --study-name disributed-test
-```

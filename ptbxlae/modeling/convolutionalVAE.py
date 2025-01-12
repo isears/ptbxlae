@@ -11,6 +11,7 @@ from ptbxlae.modeling.convolutionalModules import (
 from torchinfo import summary
 
 import lightning as L
+from typing import Optional
 
 
 class ConvolutionalEcgVAE(BaseVAE):
@@ -73,16 +74,16 @@ class ConvolutionalEcgVAE(BaseVAE):
 
 
 if __name__ == "__main__":
-    x = torch.rand((32, 12, 1000)).to("cuda")
+    x = torch.rand((53, 12, 1000)).to("cuda")
 
     m = ConvolutionalEcgVAE(
         seq_len=1000,
-        conv_depth=4,
-        fc_depth=3,
+        conv_depth=9,
+        fc_depth=8,
         kernel_size=7,
         latent_dim=100,
-        dropout=0.1,
-        batchnorm=True,
+        dropout=0.5435118213759277,
+        batchnorm=False,
     )
     e = m.encoder(x)
     print(f"Encoder shape:\t {e.shape}")
@@ -100,5 +101,5 @@ if __name__ == "__main__":
     reconstruction, mean, logvar = m.forward(x)
     loss = m._loss_fn(x, reconstruction, mean, logvar)
     m.backward(loss)
-    m.training_step(x)
-    m.validation_step(x)
+    m.training_step((x, {}))
+    m.validation_step((x, {}))

@@ -14,8 +14,11 @@ model:
       class_path: ptbxlae.modeling.SumReducingSoftDTWLoss
       init_args:
         gamma: 1
+
 data:
-  class_path: ptbxlae.dataprocessing.dataModules.SyntheticDM
+  class_path: ptbxlae.dataprocessing.dataModules.DefaultDM
   init_args:
+    ds:
+      class_path: ptbxlae.dataprocessing.nkSyntheticDS.NkSyntheticDS
+        examples_per_epoch: 3200
     batch_size: 32
-    examples_per_epoch: 3200

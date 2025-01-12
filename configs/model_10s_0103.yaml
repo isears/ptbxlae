@@ -1,0 +1,12 @@
+class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
+init_args:
+  latent_dim: 100
+  conv_depth: 2
+  fc_depth: 3
+  fc_scale_factor: 4
+  kernel_size: 11
+  dropout: null
+  batchnorm: False
+  lr: 0.00009250680600888913
+  n_channels: 12
+  seq_len: 1000

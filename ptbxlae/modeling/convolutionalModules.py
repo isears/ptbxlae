@@ -17,6 +17,7 @@ from typing import Optional
 
 from torchinfo import summary
 from dataclasses import dataclass
+from typing import Optional
 
 
 # For debugging sequentials
