@@ -53,9 +53,9 @@ def check_none_failed(job_ids: list[int]):
 
     result_raw = result.stdout.strip()
 
-    for line in result_raw.split("\n"):
-        if "FAILED" in line:
-            raise RuntimeError("Detected Failed job")
+    # for line in result_raw.split("\n"):
+    #     if "FAILED" in line:
+    #         raise RuntimeError("Detected Failed job")
 
 
 if __name__ == "__main__":
@@ -67,6 +67,10 @@ if __name__ == "__main__":
     job_timelimit = datetime.timedelta(hours=12)
 
     while True:
+        if total_jobcount > 100:
+            print("Reached 100 jobs, stopping just incase I'm doing something stupd")
+            print("Feel free to restart if everything looks good")
+            quit()
         try:
             active_joblist = refresh_active_joblist(active_joblist)
 

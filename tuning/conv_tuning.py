@@ -12,7 +12,7 @@ import gc
 
 
 def objective(trial: optuna.trial.Trial) -> float:
-    lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+    lr = trial.suggest_float("lr", 1e-8, 1e-1, log=True)
     batch_size = trial.suggest_int("batch_size", 8, 256, log=True)
     kernel_size = trial.suggest_int("kernel_size", 3, 15, step=2)
     conv_depth = trial.suggest_int("conv_depth", 1, 5)
@@ -37,7 +37,7 @@ def objective(trial: optuna.trial.Trial) -> float:
     )
 
     dm = MimicDM(batch_size=batch_size)
-    es = EarlyStopping(monitor="val_loss", patience=5, mode="min")
+    es = EarlyStopping(monitor="val_mse", patience=5, mode="min")
 
     trainer = pl.Trainer(
         logger=NeptuneLogger(
