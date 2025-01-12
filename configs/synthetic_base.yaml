@@ -2,18 +2,16 @@ model:
   class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
   init_args:
     latent_dim: 100
-    conv_depth: 4
-    fc_depth: 3
-    kernel_size: 7
+    conv_depth: 5
+    fc_depth: 1
+    fc_scale_factor: 4
+    kernel_size: 15
     dropout: null
-    batchnorm: False
-    lr: 4.7491754446145785e-05
+    batchnorm: True
+    lr: 0.00024422008762451405
     n_channels: 12
     seq_len: 1000
-    loss:
-      class_path: ptbxlae.modeling.SumReducingSoftDTWLoss
-      init_args:
-        gamma: 1
+    loss: null
 
 data:
   class_path: ptbxlae.dataprocessing.dataModules.DefaultDM
