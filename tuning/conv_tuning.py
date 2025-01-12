@@ -1,6 +1,7 @@
 import optuna
 from ptbxlae.modeling.convolutionalVAE import ConvolutionalEcgVAE
-from ptbxlae.dataprocessing.dataModules import MimicDM
+from ptbxlae.dataprocessing.dataModules import DefaultDM
+from ptbxlae.dataprocessing.mimicDS import MimicDS
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import NeptuneLogger
@@ -36,7 +37,7 @@ def objective(trial: optuna.trial.Trial) -> float:
         dropout=dropout,
     )
 
-    dm = MimicDM(batch_size=batch_size)
+    dm = DefaultDM(ds=MimicDS(), batch_size=batch_size)
     es = EarlyStopping(monitor="val_mse", patience=5, mode="min")
 
     trainer = pl.Trainer(
