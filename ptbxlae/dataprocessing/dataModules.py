@@ -9,6 +9,7 @@ from typing import Type, Optional
 
 
 class BaseDM(L.LightningDataModule):
+
     def __init__(self, batch_size: int = 32, workers: Optional[int] = None):
         super().__init__()
 

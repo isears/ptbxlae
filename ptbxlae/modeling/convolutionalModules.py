@@ -13,6 +13,8 @@ from torch.nn import (
     Dropout,
 )
 
+from typing import Optional
+
 from torchinfo import summary
 from dataclasses import dataclass
 from typing import Optional

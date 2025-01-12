@@ -1,17 +1,20 @@
 import optuna
 from ptbxlae.modeling.convolutionalVAE import ConvolutionalEcgVAE
-from ptbxlae.dataprocessing.dataModules import MimicDM
+from ptbxlae.dataprocessing.dataModules import DefaultDM
+from ptbxlae.dataprocessing.mimicDS import MimicDS
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import NeptuneLogger
 
 from optuna.integration import PyTorchLightningPruningCallback
 import argparse
+import torch
+import gc
 
 
 def objective(trial: optuna.trial.Trial) -> float:
-    lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
-    batch_size = trial.suggest_int("batch_size", 8, 1024, log=True)
+    lr = trial.suggest_float("lr", 1e-8, 1e-1, log=True)
+    batch_size = trial.suggest_int("batch_size", 8, 256, log=True)
     kernel_size = trial.suggest_int("kernel_size", 3, 15, step=2)
     conv_depth = trial.suggest_int("conv_depth", 1, 10)
     fc_depth = trial.suggest_int("linear_depth", 1, 10)
@@ -34,8 +37,8 @@ def objective(trial: optuna.trial.Trial) -> float:
         dropout=dropout,
     )
 
-    dm = MimicDM(batch_size=batch_size)
-    es = EarlyStopping(monitor="val_loss", patience=5, mode="min")
+    dm = DefaultDM(ds=MimicDS(), batch_size=batch_size)
+    es = EarlyStopping(monitor="val_mse", patience=5, mode="min")
 
     trainer = pl.Trainer(
         logger=NeptuneLogger(
@@ -49,7 +52,7 @@ def objective(trial: optuna.trial.Trial) -> float:
             # PyTorchLightningPruningCallback(trial, monitor="val_loss"),
             ModelCheckpoint(
                 dirpath="cache/optuna/checkpoints",
-                save_top_k=1,
+                save_top_k=0,
                 monitor="val_loss",
                 mode="min",
                 filename=f"{model.__class__.__name__}_{trial.number}",
@@ -57,11 +60,22 @@ def objective(trial: optuna.trial.Trial) -> float:
             es,
         ],
         gradient_clip_algorithm="norm",
-        gradient_clip_val=4.0,
+        gradient_clip_val=0.5,
     )
 
     trainer.logger.log_hyperparams(trial.params)
-    trainer.fit(model, datamodule=dm)
+
+    try:
+        trainer.fit(model, datamodule=dm)
+    except torch.OutOfMemoryError:
+        del model
+        torch.cuda.empty_cache()
+        gc.collect()
+        return float("nan")
+
+    del model
+    torch.cuda.empty_cache()
+    gc.collect()
 
     return es.best_score.item()
 
@@ -92,7 +106,7 @@ if __name__ == "__main__":
         load_if_exists=True,
     )
 
-    study.optimize(objective, timeout=(args.timelimit * 60))
+    study.optimize(objective, timeout=(args.timelimit * 60), n_trials=1)
 
     print("Number of finished trials: {}".format(len(study.trials)))
 

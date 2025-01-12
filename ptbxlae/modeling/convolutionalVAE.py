@@ -1,5 +1,6 @@
 import torch
 from torch.nn import Linear, Sequential, LeakyReLU, Sigmoid
+from typing import Optional
 
 from ptbxlae.modeling import BaseVAE
 from ptbxlae.modeling.convolutionalModules import (

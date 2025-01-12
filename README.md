@@ -80,6 +80,21 @@ python slurm/distributed_tune.py --debug
 
 Check the optuna results (should optimize to 2)
 ```bash
-optuna studies --storage "sqlite:///cache/distributed-test.db"
-optuna best-trial --storage "sqlite:///cache/distributed-test.db" --study-name disributed-test
+python main.py test --config path/to/original/config.yaml --ckpt_path cache/savedmodels/checkpoint_name_here.ckpt
 ```
+
+## Distributed Hyperparameter Tuning on Slurm
+
+First create the optuna study
+
+```bash
+optuna create-study --study-name "synthetic-ekgs" --storage "sqlite:///cache/synthetic-ekgs.db"
+```
+
+Run an example tuning script
+```bash
+python slurm/distributed_tune.py --debug
+```
+
+Check the optuna results (should optimize to 2)
+```bash
