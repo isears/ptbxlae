@@ -9,6 +9,7 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import NeptuneLogger
 import tempfile
 from neptune import management
+import sys
 
 
 class SmokeTester:
@@ -166,8 +167,26 @@ class SmokeTester:
         for msg in results:
             print(msg)
 
+    def runone(self, name: str):
+        self.setup_smoketest()
+
+        try:
+            getattr(self, name)()
+            print(f"{name}: SUCCEEDED")
+
+        except Exception as e:
+            print(f"[-] SMOKE TEST FAILED: {name}")
+            print(e)
+
+        self.teardown_smoketest()
+
 
 if __name__ == "__main__":
     st = SmokeTester()
 
-    st.runall()
+    if len(sys.argv) > 1:
+        test_name = sys.argv[1]
+        st.runone(sys.argv[1])
+    else:
+
+        st.runall()
