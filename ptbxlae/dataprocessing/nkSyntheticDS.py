@@ -36,7 +36,7 @@ class NkSyntheticDS(torch.utils.data.Dataset):
             duration=self.duration_s * 2,
             sampling_rate=self.sampling_rate_hz,
             # https://pmc.ncbi.nlm.nih.gov/articles/PMC11137473
-            heart_rate=np.random.normal(74.5, 8.5),
+            heart_rate=int(np.random.normal(74.5, 8.5)),
             method="multileads",
             random_state=42,
             ti=np.random.normal(self.ti, np.ones(5) * 3),
@@ -45,7 +45,10 @@ class NkSyntheticDS(torch.utils.data.Dataset):
         )
 
         ecg_clean = np.apply_along_axis(
-            nk.ecg_clean, 1, ecg.transpose(), sampling_rate=self.sampling_rate_hz
+            nk.ecg_clean,  # type: ignore
+            1,
+            ecg.transpose(),
+            sampling_rate=self.sampling_rate_hz,
         )
 
         # Need to do random sliding window so that sequence doesn't always start on rpeak
@@ -64,7 +67,7 @@ class SinglechannelSyntheticDS(NkSyntheticDS):
             duration=self.duration_s * 2,
             sampling_rate=self.sampling_rate_hz,
             # https://pmc.ncbi.nlm.nih.gov/articles/PMC11137473
-            heart_rate=np.random.normal(74.5, 8.5),
+            heart_rate=int(np.random.normal(74.5, 8.5)),
             method="ecgsyn",
             random_state=42,
             ti=np.random.normal(self.ti, np.ones(5) * 3),
