@@ -54,7 +54,7 @@ class NkSyntheticDS(torch.utils.data.Dataset):
             :, random_start : (ecg_clean.shape[1] // 2) + random_start
         ]
 
-        return torch.Tensor(ecg_clean), torch.Tensor([])
+        return torch.Tensor(ecg_clean), {}
 
 
 class SinglechannelSyntheticDS(NkSyntheticDS):
