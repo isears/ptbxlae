@@ -116,6 +116,7 @@ class BaseVAE(L.LightningModule, ABC):
         base_model_path: Optional[str] = None,
     ):
         super(BaseVAE, self).__init__()
+        torch.set_float32_matmul_precision("high")
 
         if not loss:
             self.loss = MSELoss(reduction="sum")
