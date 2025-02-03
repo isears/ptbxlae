@@ -1,0 +1,18 @@
+model:
+  class_path: ptbxlae.modeling.maskedPretrainingTransformer.MaskedPretrainingTransformer
+  init_args:
+    lr: 1e-4
+
+data:
+  class_path: ptbxlae.dataprocessing.dataModules.DefaultDM
+  init_args:
+    batch_size: 32
+    ds:
+      class_path: ptbxlae.dataprocessing.maskingDS.SegmentMaskingDS
+      init_args:
+        mask_proportion: 0.3
+        unmasked_ekg_dataset:
+          class_path: ptbxlae.dataprocessing.ptbxlDS.PtbxlCleanDS
+          init_args:
+            lowres: True
+        

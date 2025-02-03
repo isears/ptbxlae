@@ -108,14 +108,15 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
         return super().on_fit_end(trainer, pl_module)
 
 
-class BaseVAE(L.LightningModule, ABC):
-
+class BaseModel(L.LightningModule, ABC):
     def __init__(
         self,
+        lr: float,
         loss: Optional[torch.nn.Module] = None,
         base_model_path: Optional[str] = None,
     ):
-        super(BaseVAE, self).__init__()
+        super(BaseModel, self).__init__()
+        self.lr = lr
 
         if not loss:
             self.loss = MSELoss(reduction="sum")
@@ -128,6 +129,20 @@ class BaseVAE(L.LightningModule, ABC):
         self.valid_mse = MeanSquaredError()
         self.test_mse = MeanSquaredError()
         self.save_hyperparameters()
+
+    def on_train_start(self):
+        if self.base_model_path:
+            weights = torch.load(
+                self.base_model_path, map_location=self.device, weights_only=True
+            )
+            self.load_state_dict(weights["state_dict"])
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        return optimizer
+
+
+class BaseVAE(BaseModel, ABC):
 
     @abstractmethod
     def encode_mean_logvar(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -169,13 +184,6 @@ class BaseVAE(L.LightningModule, ABC):
         z = self._reparameterization(mean, logvar)
         reconstruction = self.decode(z)
         return reconstruction, mean, logvar
-
-    def on_train_start(self):
-        if self.base_model_path:
-            weights = torch.load(
-                self.base_model_path, map_location=self.device, weights_only=True
-            )
-            self.load_state_dict(weights["state_dict"])
 
     def training_step(self, batch):
         x, _ = batch
@@ -234,15 +242,3 @@ class BaseVAE(L.LightningModule, ABC):
         label_evals = self.test_label_evaluator.compute()
         for label, score in label_evals.items():
             self.log(f"AUROC ({label})", score)
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
-        return optimizer
-
-    # For use with autolr feature that never really worked
-    # def on_fit_start(self):
-    #     if self.lr:
-    #         # Overwrite learning rate after running LearningRateFinder
-    #         for optimizer in self.trainer.optimizers:
-    #             for param_group in optimizer.param_groups:
-    #                 param_group["lr"] = self.lr

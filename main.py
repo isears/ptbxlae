@@ -1,4 +1,4 @@
-from ptbxlae.modeling import BaseVAE
+from ptbxlae.modeling import BaseModel
 from lightning.pytorch.cli import LightningCLI
 from ptbxlae.dataprocessing.dataModules import BaseDM
 import torch
@@ -6,7 +6,7 @@ import torch
 
 def cli_main():
     cli = LightningCLI(
-        BaseVAE,
+        BaseModel,
         BaseDM,
         subclass_mode_data=True,
         subclass_mode_model=True,
