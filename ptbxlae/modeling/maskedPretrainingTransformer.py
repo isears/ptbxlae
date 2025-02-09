@@ -8,7 +8,6 @@ class MaskedPretrainingTransformer(BaseModel):
         super(MaskedPretrainingTransformer, self).__init__(lr, loss, base_model_path)
 
         # TODO: eventually pass all these as args
-        # TODO: d_model = n_channels? ideally they are independent
         self.model = torch.nn.Transformer(
             d_model=12,
             nhead=3,
@@ -19,14 +18,12 @@ class MaskedPretrainingTransformer(BaseModel):
         )
 
     def forward(self, x, x_masked, attn_mask):
-        # TODO: this feels wrong
-        # x_proj = self.project(x)
-        # x_masked_proj = self.project(x_masked)
 
         reconstruction = self.model(
             src=x_masked,
             tgt=x,
-            src_key_padding_mask=attn_mask,
+            # TODO: need to think more about how to properly implement this, but for now channel masking strategy doesn't need
+            # src_key_padding_mask=attn_mask,
         )
 
         return reconstruction
@@ -35,12 +32,19 @@ class MaskedPretrainingTransformer(BaseModel):
         x, x_masked, attn_mask, _ = batch
 
         # Pytorch convention seq_len before features
+        # TODO: there's probably a less verbose way to handle all the .unsqeeze() and .permute() ops
         x = x.permute(0, 2, 1)
         x_masked = x_masked.permute(0, 2, 1)
 
         reconstruction = self.forward(x, x_masked, attn_mask)
-        loss = self.loss(reconstruction, x.contiguous())
-        self.train_mse.update(reconstruction, x.contiguous())
+        loss = self.loss(
+            reconstruction,
+            x.contiguous(),
+        )
+        self.train_mse.update(
+            reconstruction,
+            x.contiguous(),
+        )
 
         self.log("train_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         self.log(
@@ -62,8 +66,14 @@ class MaskedPretrainingTransformer(BaseModel):
         x_masked = x_masked.permute(0, 2, 1)
 
         reconstruction = self.forward(x, x_masked, attn_mask)
-        loss = self.loss(reconstruction, x.contiguous())
-        self.valid_mse.update(reconstruction, x.contiguous())
+        loss = self.loss(
+            reconstruction,
+            x.contiguous(),
+        )
+        self.valid_mse.update(
+            reconstruction,
+            x.contiguous(),
+        )
 
         self.log("val_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
         self.log(

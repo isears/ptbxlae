@@ -25,11 +25,15 @@ class ChannelMaskingDS(BaseMaskingDS):
         assert sig.shape[0] == 12
 
         masked_channel_idx = random.choice(range(0, 12))
-        attn_mask = torch.zeros_like(sig)
-        attn_mask[masked_channel_idx] = torch.ones_like(sig[masked_channel_idx])
 
-        # NOTE: this 3D mask may not be usable as an actual attn_mask for pytorch transformers
-        return sig, attn_mask, meta
+        # NOTE: intended for internal logic, not return value
+        _mask = torch.ones_like(sig[:, 0]).bool()
+
+        _mask[masked_channel_idx] = False
+        sig_masked = torch.zeros_like(sig)
+        sig_masked[_mask] = sig[_mask]
+
+        return sig, sig_masked, masked_channel_idx, meta
 
 
 class SegmentMaskingDS(BaseMaskingDS):

@@ -8,9 +8,8 @@ data:
   init_args:
     batch_size: 32
     ds:
-      class_path: ptbxlae.dataprocessing.maskingDS.SegmentMaskingDS
+      class_path: ptbxlae.dataprocessing.maskingDS.ChannelMaskingDS
       init_args:
-        mask_proportion: 0.3
         unmasked_ekg_dataset:
           class_path: ptbxlae.dataprocessing.ptbxlDS.PtbxlCleanDS
           init_args:
