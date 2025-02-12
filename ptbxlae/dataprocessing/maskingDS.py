@@ -61,9 +61,9 @@ class SegmentMaskingDS(BaseMaskingDS):
 
         mask_start_idx = random.choice(range(0, (seq_len - mask_len)))
 
-        attn_mask = torch.zeros_like(sig[0])
-        attn_mask[mask_start_idx : mask_start_idx + mask_len] = 1
-        attn_mask = attn_mask.bool()
-        sig_masked = sig * ~attn_mask
+        mask = torch.zeros_like(sig[0])
+        mask[mask_start_idx : mask_start_idx + mask_len] = 1
+        mask = mask.bool()
+        sig_masked = sig * ~mask
 
-        return sig, sig_masked, attn_mask, meta
+        return sig, sig_masked, mask, meta
