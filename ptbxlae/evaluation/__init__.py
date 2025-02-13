@@ -5,7 +5,7 @@ from sklearn.metrics import roc_auc_score
 
 
 class LatentRepresentationUtilityMetric(Metric):
-    full_state_update: bool = False
+    full_state_update: bool = False  # type: ignore
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

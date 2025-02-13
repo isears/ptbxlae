@@ -50,32 +50,46 @@ class FixedPositionalEncoding(torch.nn.Module):
 
 class MaskedPretrainingTransformer(BaseModel):
 
-    def __init__(self, lr: float, max_len: int, loss=None, base_model_path=None):
+    def __init__(
+        self,
+        lr: float,
+        max_len: int,
+        d_model: int,
+        nhead: int,
+        nlayers: int,
+        embedding_kernel: int,
+        loss=None,
+        base_model_path=None,
+    ):
         super(MaskedPretrainingTransformer, self).__init__(lr, loss, base_model_path)
 
-        # TODO: eventually pass all these as args
-        self.d_model = 512
+        self.d_model = d_model
 
         # TODO: make this strided if model gets too big (would have to adjust positional encoding max_len as well)
-        self.conv_embedding = torch.nn.Conv1d(12, self.d_model, kernel_size=7)
+        self.conv_embedding = torch.nn.Conv1d(
+            12, self.d_model, kernel_size=embedding_kernel
+        )
         self.positional_encoding = FixedPositionalEncoding(
             self.d_model, max_len=max_len
         )
 
         self.model = torch.nn.TransformerEncoder(
             torch.nn.TransformerEncoderLayer(
-                d_model=512,
-                nhead=8,
+                d_model=self.d_model,
+                nhead=nhead,
+                batch_first=True,
             ),
-            num_layers=6,
+            num_layers=nlayers,
         )
 
-        self.output_layer = torch.nn.ConvTranspose1d(self.d_model, 12, kernel_size=7)
+        self.output_layer = torch.nn.ConvTranspose1d(
+            self.d_model, 12, kernel_size=embedding_kernel
+        )
 
     def forward(self, x_masked):
-        # Pytorch transformer convention [seq_length, batch_size, feat_dim]
-        x_masked = x_masked.permute(0, 2, 1)
         x_embeded = self.conv_embedding(x_masked)
+        # Pytorch transformer convention features dimension last, but convolutional convention is channels first
+        x_embeded = x_embeded.permute(0, 2, 1)  # [batch_dim, seq_len, feat_dim]
         inp = self.positional_encoding(x_embeded)
 
         reconstruction_embedded = self.model(
@@ -84,21 +98,28 @@ class MaskedPretrainingTransformer(BaseModel):
             # src_key_padding_mask=mask,
         )
 
+        reconstruction_embedded = reconstruction_embedded.permute(
+            0, 2, 1
+        )  # [batch_dim, feat_dim, seq_len] e.g. (32, 12, 1000)
         reconstruction = self.output_layer(reconstruction_embedded)
 
-        return reconstruction.permute(1, 0, 2)
+        return reconstruction
 
     def training_step(self, batch):
         x, x_masked, mask, _ = batch
 
         reconstruction = self.forward(x_masked)
+
+        reconstruction_masks_only = reconstruction * mask
+        x_masks_only = x * mask
+
         loss = self.loss(
-            reconstruction,
-            x.contiguous(),
+            reconstruction_masks_only,
+            x_masks_only,
         )
         self.train_mse.update(
-            reconstruction,
-            x.contiguous(),
+            reconstruction_masks_only,
+            x_masks_only,
         )
 
         self.log("train_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
@@ -117,13 +138,17 @@ class MaskedPretrainingTransformer(BaseModel):
         x, x_masked, mask, _ = batch
 
         reconstruction = self.forward(x_masked)
+
+        reconstruction_masks_only = reconstruction * mask
+        x_masks_only = x * mask
+
         loss = self.loss(
-            reconstruction,
-            x.contiguous(),
+            reconstruction_masks_only,
+            x_masks_only,
         )
         self.valid_mse.update(
-            reconstruction,
-            x.contiguous(),
+            reconstruction_masks_only,
+            x_masks_only,
         )
 
         self.log("val_loss", loss, on_step=False, on_epoch=True, sync_dist=True)

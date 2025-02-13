@@ -67,3 +67,28 @@ class SegmentMaskingDS(BaseMaskingDS):
         sig_masked = sig * ~mask
 
         return sig, sig_masked, mask, meta
+
+
+class MixedSegmentMaskingDS(SegmentMaskingDS):
+    """
+    Randomly mask part of each channel (as opposed to segment masking ds that masks same part of every channel)
+    """
+
+    def __getitem__(self, index):
+        sig, meta = self.ds[index]
+
+        assert sig.shape[0] == 12
+
+        seq_len = sig.shape[1]
+        mask_len = int(seq_len * self.mask_proportion)
+
+        mask = torch.zeros_like(sig)
+
+        for channel_idx in range(0, 12):
+            mask_start_idx = random.choice(range(0, (seq_len - mask_len)))
+            mask[channel_idx, mask_start_idx : mask_start_idx + mask_len] = 1
+
+        mask = mask.bool()
+        sig_masked = sig * ~mask
+
+        return sig, sig_masked, mask, meta
