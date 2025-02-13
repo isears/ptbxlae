@@ -53,7 +53,7 @@ class PtbxlDS(torch.utils.data.Dataset):
                 else:
                     return None
 
-            metadata = metadata.groupby("patient_id").apply(get_first_clean)
+            metadata = metadata.groupby("patient_id").apply(get_first_clean)  # type: ignore
             metadata = metadata.dropna(subset="ecg_id")
 
             metadata.to_csv(f"{root_folder}/ptbxl_database_filtered.csv")
@@ -113,7 +113,10 @@ class PtbxlDS(torch.utils.data.Dataset):
 class PtbxlCleanDS(PtbxlDS):
     def _clean(self, sig_raw: np.ndarray, sigmeta: dict) -> np.ndarray:
         sig_clean = np.apply_along_axis(
-            nk.ecg_clean, 1, sig_raw.transpose(), sampling_rate=sigmeta["fs"]
+            nk.ecg_clean,  # type: ignore
+            1,
+            sig_raw.transpose(),
+            sampling_rate=sigmeta["fs"],
         )
 
         return sig_clean
@@ -125,12 +128,18 @@ class PtbxlCleanDS(PtbxlDS):
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
 
-        sig_clean = self._clean(sig, sigmeta)
+        sig_clean = self._clean(sig, sigmeta)  # type: ignore
 
         if self.return_labels:
             return torch.Tensor(sig_clean).float(), self._get_labels(index)
         else:
             return torch.Tensor(sig_clean).float(), {}
+
+
+class PtbxlMultilabeledDS(PtbxlCleanDS):
+    def _get_labels(self, index):
+        labels_dict = super()._get_labels(index)
+        return torch.Tensor(list(labels_dict.values())).float()
 
 
 if __name__ == "__main__":

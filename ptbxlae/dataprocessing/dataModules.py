@@ -79,9 +79,8 @@ class MimicTrainPtbxlTestDM(BaseDM):
             generator=torch.Generator().manual_seed(42),
         )
 
-
     def test_dataloader(self):
-        ptbxl_ds = PtbxlDS(return_labels=True, lowres=True)
+        ptbxl_ds = PtbxlCleanDS(return_labels=True, lowres=True)
         return DataLoader(
             ptbxl_ds, num_workers=self.cores_available, batch_size=self.batch_size
         )
