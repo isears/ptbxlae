@@ -1,12 +1,14 @@
-from ptbxlae.modeling import BaseVAE
+from ptbxlae.modeling import BaseModel
 from lightning.pytorch.cli import LightningCLI
 from ptbxlae.dataprocessing.dataModules import BaseDM
 import torch
 
 
 def cli_main():
+    # torch.set_float32_matmul_precision('medium' | 'high')
+    torch.set_float32_matmul_precision("medium")
     cli = LightningCLI(
-        BaseVAE,
+        BaseModel,
         BaseDM,
         subclass_mode_data=True,
         subclass_mode_model=True,

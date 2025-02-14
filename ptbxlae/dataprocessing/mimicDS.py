@@ -78,6 +78,7 @@ class MimicDS(torch.utils.data.Dataset):
             nk.ecg_clean, 1, sig_resamp, sampling_rate=self.freq  # type: ignore
         )  # type: ignore
 
+
         return torch.Tensor(sig_clean).float(), {}
 
 
