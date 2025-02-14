@@ -59,7 +59,11 @@ class PtbxlDS(torch.utils.data.Dataset):
             metadata.to_csv(f"{root_folder}/ptbxl_database_filtered.csv")
 
         metadata.ecg_id = metadata.ecg_id.astype(int)
+        metadata.patient_id = metadata.patient_id.astype(int)
         self.metadata = metadata
+        self.patient_ids = self.metadata["patient_id"].unique()
+        self.pid_groups = self.metadata.groupby("patient_id")
+
         self.lowres = lowres
         self.root_folder = root_folder
         self.return_labels = return_labels
@@ -80,27 +84,32 @@ class PtbxlDS(torch.utils.data.Dataset):
             ).astype(float)
 
     def __len__(self):
-        return len(self.metadata)
-
-    def _get_labels(self, index: int):
-        this_meta = self.metadata.iloc[index]
-        # Probably over-kill but want to make certain order of labels is consistent
-        return {c: this_meta[c] for c in self.ordered_labels}
+        return len(self.pid_groups)
 
     def __getitem__(self, index: int):
         # Outputs ECG data of shape sig_len x num_leads (e.g. for low res 1000 x 12)
-        this_meta = self.metadata.iloc[index]
-        ecg_id = this_meta["ecg_id"]
+        patient_id = self.patient_ids[index]
+        available_exams = self.pid_groups.get_group(patient_id)
+        selected_exam = available_exams.sample(1, random_state=42).iloc[0]
+
+        ecg_id = selected_exam["ecg_id"]
         sig, sigmeta = load_single_ptbxl_record(
             ecg_id, lowres=self.lowres, root_dir=self.root_folder
         )
 
+        sig_clean = np.apply_along_axis(
+            nk.ecg_clean,  # type: ignore
+            1,
+            sig.transpose(),  # type: ignore
+            sampling_rate=sigmeta["fs"],
+        )  # type: ignore
+
         if self.return_labels:
-            labels = self._get_labels(index)
+            labels = {c: selected_exam[c] for c in self.ordered_labels}
         else:
             labels = {}
 
-        return torch.Tensor(sig).transpose(1, 0).float(), labels
+        return torch.Tensor(sig_clean).float(), labels
 
     def set_return_labels(self, return_labels: bool):
         """Set return labels flag
@@ -108,7 +117,6 @@ class PtbxlDS(torch.utils.data.Dataset):
             return_labels (bool): If true, dataset will return true labels instead of dummies
         """
         self.return_labels = return_labels
-
 
 class PtbxlCleanDS(PtbxlDS):
     def _clean(self, sig_raw: np.ndarray, sigmeta: dict) -> np.ndarray:
@@ -141,8 +149,7 @@ class PtbxlMultilabeledDS(PtbxlCleanDS):
         labels_dict = super()._get_labels(index)
         return torch.Tensor(list(labels_dict.values())).float()
 
-
 if __name__ == "__main__":
-    ds = PtbxlCleanDS(lowres=True, return_labels=True)
+    ds = PtbxlDS(lowres=True, return_labels=True)
 
     print(ds[0])

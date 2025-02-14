@@ -70,13 +70,14 @@ class MimicDS(torch.utils.data.Dataset):
             sig,
             sampling_rate=meta["fs"],
             desired_sampling_rate=self.freq,
-        )
+        )  # type: ignore
 
         assert sig_resamp.shape == (12, 10 * self.freq)
 
         sig_clean = np.apply_along_axis(
             nk.ecg_clean, 1, sig_resamp, sampling_rate=self.freq  # type: ignore
-        )
+        )  # type: ignore
+
 
         return torch.Tensor(sig_clean).float(), {}
 

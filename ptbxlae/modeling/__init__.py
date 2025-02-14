@@ -118,6 +118,7 @@ class BaseModel(L.LightningModule, ABC):
         super(BaseModel, self).__init__()
         self.lr = lr
 
+
         if not loss:
             self.loss = MSELoss(reduction="sum")
         else:
