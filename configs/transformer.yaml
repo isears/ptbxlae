@@ -2,10 +2,10 @@ model:
   class_path: ptbxlae.modeling.maskedPretrainingTransformer.MaskedPretrainingTransformer
   init_args:
     lr: 1e-4
-    d_model: 512
+    d_model: 64
     max_len: 1000
-    nhead: 8
-    nlayers: 6
+    nhead: 4
+    nlayers: 3
     embedding_kernel: 7
 
 data:
