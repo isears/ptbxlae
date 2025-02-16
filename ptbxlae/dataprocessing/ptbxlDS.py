@@ -26,7 +26,7 @@ class PtbxlDS(torch.utils.data.Dataset):
         """
         super(PtbxlDS, self).__init__()
 
-        metadata = pd.read_csv(f"f{root_folder}/ptbxl_database.csv")
+        metadata = pd.read_csv(f"{root_folder}/ptbxl_database.csv")
         metadata.ecg_id = metadata.ecg_id.astype(int)
         metadata.patient_id = metadata.patient_id.astype(int)
         self.metadata = metadata
