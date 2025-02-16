@@ -3,7 +3,7 @@ model:
   init_args:
     latent_dim: 100
     kernel_size: 7
-    lr: 1e-4
+    lr: 1e-5
 
 data:
   class_path: ptbxlae.dataprocessing.dataModules.MimicTrainPtbxlTestDM
