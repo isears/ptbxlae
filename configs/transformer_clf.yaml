@@ -13,4 +13,3 @@ data:
       class_path: ptbxlae.dataprocessing.ptbxlDS.PtbxlMultilabeledDS
       init_args:
         lowres: True
-        return_labels: True

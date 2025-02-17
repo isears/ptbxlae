@@ -89,6 +89,9 @@ class PtbxlDS(torch.utils.data.Dataset):
 
 
 class PtbxlMultilabeledDS(PtbxlDS):
+    def __init__(self, root_folder="./data/ptbxl", lowres=False):
+        super().__init__(root_folder, lowres, return_labels=True)
+
     def __getitem__(self, index):
         sig, labels_dict = super().__getitem__(index)
         return sig, torch.Tensor(list(labels_dict.values())).float()

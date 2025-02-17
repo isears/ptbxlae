@@ -23,31 +23,6 @@ class SumReducingSoftDTWLoss(SoftDTWLossPyTorch):
         return super().forward(x, y).sum()
 
 
-class LightningCliCompatibleNeptuneLogger(NeptuneLogger):
-    def __init__(
-        self,
-        *,
-        api_key=None,
-        project=None,
-        name=None,
-        run=None,
-        log_model_checkpoints=True,
-        prefix="training",
-        tags: Optional[list] = None,
-        **neptune_run_kwargs,
-    ):
-        super().__init__(
-            api_key=api_key,
-            project=project,
-            name=name,
-            run=run,
-            log_model_checkpoints=log_model_checkpoints,
-            prefix=prefix,
-            tags=tags,
-            **neptune_run_kwargs,
-        )
-
-
 class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
     def __init__(

@@ -3,6 +3,9 @@ import torch
 import math
 from torch.nn import BCELoss, Linear, Sequential, Flatten, ReLU, Sigmoid
 from torchmetrics.classification import AUROC, AveragePrecision
+from torchinfo import summary
+from torch.nn import AdaptiveAvgPool1d
+from typing import Optional
 
 
 # From https://github.com/pytorch/examples/blob/master/word_language_model/model.py
@@ -176,9 +179,9 @@ class MaskedPretrainingTransformerClassifier(BaseModel):
     def __init__(
         self,
         lr,
-        pretrained_path: str,
         freeze_base_model: bool,
         n_classes: int,
+        pretrained_path: Optional[str] = None,
     ):
         super(MaskedPretrainingTransformerClassifier, self).__init__(lr, BCELoss())
 
@@ -192,9 +195,17 @@ class MaskedPretrainingTransformerClassifier(BaseModel):
 
         self.freeze_base_model = freeze_base_model
 
-        self.pretrained_transformer = MaskedPretrainingTransformer.load_from_checkpoint(
-            pretrained_path
-        ).to(self.device)
+        if pretrained_path:
+            self.pretrained_transformer = (
+                MaskedPretrainingTransformer.load_from_checkpoint(pretrained_path).to(
+                    self.device
+                )
+            )
+        else:
+            # TODO: should really be passing these params from a config...
+            self.pretrained_transformer = MaskedPretrainingTransformer(
+                lr=lr, max_len=1000, d_model=64, nhead=4, embedding_kernel=7, nlayers=3
+            )
 
         _sample = torch.rand((2, 12, self.pretrained_transformer.max_len)).to(
             self.device
@@ -213,10 +224,12 @@ class MaskedPretrainingTransformerClassifier(BaseModel):
                 param.requires_grad = False
 
         self.classification_head = Sequential(
+            # ReLU(),
+            AdaptiveAvgPool1d(1),
             Flatten(),
-            ReLU(),
             Linear(
-                expected_encoding_shape[1] * expected_encoding_shape[2],
+                # expected_encoding_shape[1] * expected_encoding_shape[2],
+                expected_encoding_shape[1],
                 n_classes,
             ),
             Sigmoid(),
@@ -233,16 +246,23 @@ class MaskedPretrainingTransformerClassifier(BaseModel):
 
         loss = self.loss(preds, y)
 
-        self.log("train_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            "train_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+            prog_bar=True,
+        )
 
         for m in self.train_metrics:
             m.update(preds, y.int())
             self.log(
-                m.__class__.__name__,
+                f"train_{m.__class__.__name__}",
                 m,
                 on_step=False,
                 on_epoch=True,
-                prog_bar=True,
+                prog_bar=False,
                 sync_dist=True,
             )
 
@@ -255,16 +275,23 @@ class MaskedPretrainingTransformerClassifier(BaseModel):
 
         loss = self.loss(preds, y)
 
-        self.log("val_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            "val_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+            prog_bar=True,
+        )
 
         for m in self.valid_metrics:
             m.update(preds, y.int())
             self.log(
-                m.__class__.__name__,
+                f"val_{m.__class__.__name__}",
                 m,
                 on_step=False,
                 on_epoch=True,
-                prog_bar=True,
+                prog_bar=False,
                 sync_dist=True,
             )
 
@@ -272,3 +299,14 @@ class MaskedPretrainingTransformerClassifier(BaseModel):
 
     def test_step(self, batch):
         raise NotImplementedError()
+
+
+if __name__ == "__main__":
+    clf = MaskedPretrainingTransformerClassifier(
+        lr=1e-4,
+        pretrained_path="cache/archivedmodels/imputation-transformer-ptbxlae-2914.ckpt",
+        freeze_base_model=False,
+        n_classes=44,
+    )
+
+    summary(clf, input_size=(32, 12, 1000))
