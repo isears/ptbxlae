@@ -1,0 +1,19 @@
+model:
+  class_path: ptbxlae.modeling.resnet1dVAE.ResnetEcgVAE
+  init_args:
+    latent_dim: 100
+    kernel_size: 7
+    lr: 1e-4
+# data:
+#   class_path: ptbxlae.dataprocessing.dataModules.MimicTrainPtbxlTestDM
+#   init_args:
+#     batch_size: 32
+
+data:
+  class_path: ptbxlae.dataprocessing.dataModules.DefaultDM
+  init_args:
+    batch_size: 32
+    ds:
+      class_path: ptbxlae.dataprocessing.mimicDS.MimicDS
+      # init_args:
+      #   lowres: True

@@ -14,11 +14,12 @@ def cli_main():
         subclass_mode_model=True,
         save_config_callback=None,
         parser_kwargs={"default_config_files": ["configs/default_trainer.yaml"]},
-        run=False,
+        # run=False,
     )
 
-    cli.trainer.fit(cli.model, cli.datamodule)
-    cli.trainer.test(cli.model, cli.datamodule, ckpt_path="best")
+    # cli.trainer.fit(cli.model, cli.datamodule)
+    # cli.trainer.test(cli.model, cli.datamodule, ckpt_path="best")
+    # cli.trainer.test(cli.model, cli.datamodule)
 
 
 if __name__ == "__main__":

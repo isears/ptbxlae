@@ -30,9 +30,8 @@ class ConvolutionalEcgVAE(BaseVAE):
         dropout: Optional[float] = None,
         **kwargs,
     ):
-        super(ConvolutionalEcgVAE, self).__init__(**kwargs)
+        super(ConvolutionalEcgVAE, self).__init__(lr=lr, **kwargs)
 
-        self.lr = lr
         self.seq_len = seq_len
 
         shared_params = ConvolutionalEcgEncoderDecoderSharedParams(

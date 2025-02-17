@@ -51,7 +51,7 @@ class LightningCliCompatibleNeptuneLogger(NeptuneLogger):
 class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
     def __init__(
-        self, log_sample_reconstructions: bool, num_examples: int = 12, **kwargs
+        self, log_sample_reconstructions: bool, num_examples: int = 1, **kwargs
     ):
         super().__init__(**kwargs)
 
@@ -64,6 +64,13 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
                 [
                     trainer.val_dataloaders.dataset[idx][0]
                     for idx in range(0, self.num_examples)
+                ]
+            )
+
+        if type(trainer.logger) == NeptuneLogger:
+            trainer.logger.experiment["sys/tags"].add(
+                [
+                    f"model_{pl_module.__class__.__name__}",
                 ]
             )
 
@@ -117,7 +124,6 @@ class BaseModel(L.LightningModule, ABC):
     ):
         super(BaseModel, self).__init__()
         self.lr = lr
-
 
         if not loss:
             self.loss = MSELoss(reduction="sum")
