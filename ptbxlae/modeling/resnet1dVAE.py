@@ -122,10 +122,6 @@ class Resnet1DEncoder(Module):
     def __init__(self, kernel_size: int, latent_dim: int):
         super(Resnet1DEncoder, self).__init__()
 
-        assert (
-            latent_dim < 192
-        ), f"[-] Early bottleneck detected: latent_dim {latent_dim} greater than resnet features output dim"
-
         self.start_layer = Sequential(
             Conv1d(12, 24, kernel_size=13, stride=2, padding=6),
             BatchNorm1d(24),
@@ -136,10 +132,12 @@ class Resnet1DEncoder(Module):
         self.residual_blocks = Sequential(
             ResidualBlock1D(24, 48, kernel_size=kernel_size, task="encoder"),
             ResidualBlock1D(48, 96, kernel_size=kernel_size, task="encoder"),
-            ResidualBlock1D(96, 192, kernel_size=kernel_size, task="encoder"),
+            ResidualBlock1D(96, 96, kernel_size=kernel_size, task="encoder"),
+            ResidualBlock1D(96, 96, kernel_size=kernel_size, task="encoder"),
+            ResidualBlock1D(96, 96, kernel_size=kernel_size, task="encoder"),
         )
 
-        self.final_layer = Sequential(AdaptiveAvgPool1d(output_size=1), Flatten())
+        self.final_layer = Sequential(Flatten())
 
     def forward(self, x):
         out = self.start_layer(x)
@@ -154,13 +152,14 @@ class Resnet1DDecoder(Module):
         super(Resnet1DDecoder, self).__init__()
 
         self.start_layer = Sequential(
-            Linear(latent_dim, 192),
-            Unflatten(dim=1, unflattened_size=(192, 1)),
-            Linear(1, 63),
+            Linear(latent_dim, 16 * 96),
+            Unflatten(dim=1, unflattened_size=(96, 16)),
         )
 
         self.residual_blocks = Sequential(
-            ResidualBlock1D(192, 96, kernel_size=kernel_size, task="decoder"),
+            ResidualBlock1D(96, 96, kernel_size=kernel_size, task="decoder"),
+            ResidualBlock1D(96, 96, kernel_size=kernel_size, task="decoder"),
+            ResidualBlock1D(96, 96, kernel_size=kernel_size, task="decoder"),
             ResidualBlock1D(96, 48, kernel_size=kernel_size, task="decoder"),
             ResidualBlock1D(48, 24, kernel_size=kernel_size, task="decoder"),
         )
@@ -184,7 +183,7 @@ class Resnet1DDecoder(Module):
 class ResnetEcgVAE(BaseVAE):
     def __init__(
         self,
-        lr,
+        lr: float,
         kernel_size: int = 7,
         latent_dim: int = 100,
         loss=None,
@@ -195,8 +194,8 @@ class ResnetEcgVAE(BaseVAE):
         self.encoder = Resnet1DEncoder(kernel_size=kernel_size, latent_dim=latent_dim)
         self.decoder = Resnet1DDecoder(kernel_size=kernel_size, latent_dim=latent_dim)
 
-        self.fc_mean = Linear(192, 100)
-        self.fc_logvar = Linear(192, 100)
+        self.fc_mean = Linear(16 * 96, latent_dim)
+        self.fc_logvar = Linear(16 * 96, latent_dim)
 
     def encode_mean_logvar(self, x):
         e = self.encoder(x)
@@ -209,10 +208,12 @@ class ResnetEcgVAE(BaseVAE):
 if __name__ == "__main__":
     x = torch.rand(32, 12, 1000)
 
-    e = Resnet1DEncoder(kernel_size=7, latent_dim=100)
-    d = Resnet1DDecoder(kernel_size=7, latent_dim=100)
+    m = ResnetEcgVAE(lr=1e-4)
 
-    encoded = e(x)
+    summary(m)
+
+    encoded = m.encode(x)
     print(encoded.shape)
-    decoded = d(encoded)
+
+    decoded = m.decode(encoded)
     print(decoded.shape)
