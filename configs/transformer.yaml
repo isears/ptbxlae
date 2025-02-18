@@ -15,9 +15,7 @@ data:
     ds:
       class_path: ptbxlae.dataprocessing.maskingDS.MixedSegmentMaskingDS
       init_args:
-        mask_proportion: 0.3
+        mask_proportion: 0.5
         unmasked_ekg_dataset:
-          class_path: ptbxlae.dataprocessing.ptbxlDS.PtbxlCleanDS
-          init_args:
-            lowres: True
+          class_path: ptbxlae.dataprocessing.mimicDS.MimicDS
         
