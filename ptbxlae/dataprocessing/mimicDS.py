@@ -7,30 +7,32 @@ import numpy as np
 from sqlalchemy import (
     create_engine,
     MetaData,
-    Table,
-    Column,
-    Integer,
-    String,
-    DateTime,
     select,
-    and_,
 )
-from sqlalchemy.ext.automap import automap_base
+from sqlalchemy.orm import Session
 
 import datetime
+from typing import Optional
+from abc import ABC, abstractmethod
 
 
-class MimicDS(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        root_folder: str = "./data/mimiciv-ecg",
-        return_labels: bool = False,
-        freq: int = 100,
-    ):
-        super().__init__()
+class MimicConnector(ABC):
+    """
+    Wanted to abstract this out so that other MIMIC data sources could be implemented
 
-        # TODO: connection string params should be passed through args
-        self.db_engine = create_engine("postgresql+psycopg2://readonly@/mimiciv")
+    E.g. will likely need a csv connector for running on OSCAR where postgres not available
+    """
+
+    @abstractmethod
+    def get_demographics(self, subject_id: int, date_of_interest: datetime.date):
+        pass
+
+
+class MimicSqlConnector(MimicConnector):
+
+    def __init__(self, uri: str):
+        # local postgres: "postgresql+psycopg2://readonly@/mimiciv"
+        self.db_engine = create_engine(uri)
 
         with self.db_engine.connect() as conn:
             print(f"Successfully connected: {conn}")
@@ -46,15 +48,49 @@ class MimicDS(torch.utils.data.Dataset):
             # NOTE: allows access to tables like self.db_metadata.tables['mimiciv_hosp.patients']
             self.db_metadata.reflect(bind=self.db_engine, schema=schema_name)
 
-        # self.hosp_patients_table = Table(
-        #     "patients",
-        #     self.db_metadata,
-        #     autoload_with=self.db_engine,
-        #     schema="mimiciv_hosp",
-        # )
+    def get_demographics(self, subject_id: int, date_of_interest: datetime.date):
+        """
+        For now, just gender and age
+        """
+        t_patients = self.db_metadata.tables["mimiciv_hosp.patients"]
+
+        stmt = select(
+            t_patients.c.gender,
+            t_patients.c.anchor_age,
+            t_patients.c.anchor_year,
+        ).where(t_patients.columns.subject_id == subject_id)
+
+        with Session(self.db_engine) as s:
+            result = s.execute(stmt)
+            assert result.rowcount == 1  # subject_id should be unique in patients table
+
+            info = result.fetchone()._asdict()
+
+        # NOTE: ignores leap years, but age-resolution in MIMIC is really only down to the year so a few days +/- not relevant
+        info["age"] = (
+            date_of_interest
+            - datetime.date(year=info["anchor_year"], month=1, day=1)
+            + datetime.timedelta(days=(365 * info["anchor_age"]))
+        ).days / 365
+
+        info.pop("anchor_year")
+        info.pop("anchor_age")
+
+        return info
+
+
+class MimicDS(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        root_folder: str = "./data/mimiciv-ecg",
+        mimic_connector: Optional[MimicConnector] = None,
+        freq: int = 100,
+    ):
+        super().__init__()
+
+        self.mimic_connector = mimic_connector
 
         self.root_folder = root_folder
-        self.return_labels = return_labels
         self.record_list = (
             pd.read_csv(f"{root_folder}/record_list.csv")
             .groupby("subject_id")
@@ -64,17 +100,6 @@ class MimicDS(torch.utils.data.Dataset):
         self.freq = freq
 
         random.seed(42)
-
-    def _get_patient_info(self, subject_id: int, date: datetime.date):
-        stmt = select(self.hosp_patients_table).where(
-            self.hosp_patients_table.columns.subject_id == subject_id
-        )
-
-        with self.db_engine.connect() as conn:
-            results = conn.execute(stmt).fetchall()
-            assert len(results) == 1  # subject_id should be unique in patients table
-
-        return results[0]
 
     def __len__(self):
         return len(self.record_list)
@@ -87,7 +112,7 @@ class MimicDS(torch.utils.data.Dataset):
         subject_id = int(meta["comments"][0].split(":")[-1])
         date = meta["base_date"]
 
-        patient_info = self._get_patient_info(subject_id, date)
+        info = self.mimic_connector.get_demographics(subject_id, date)
 
         sig = sig.transpose()
 
@@ -132,12 +157,15 @@ class MimicDS(torch.utils.data.Dataset):
             nk.ecg_clean, 1, sig_resamp, sampling_rate=self.freq  # type: ignore
         )  # type: ignore
 
-        return torch.Tensor(sig_clean).float(), {}
+        return torch.Tensor(sig_clean).float(), info
 
 
 if __name__ == "__main__":
-    ds = MimicDS()
 
-    sig, labels = ds[0]
+    ds = MimicDS(
+        mimic_connector=MimicSqlConnector(uri="postgresql+psycopg2://readonly@/mimiciv")
+    )
+
+    sig, info = ds[0]
 
     print(sig.shape)
