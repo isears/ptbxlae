@@ -9,8 +9,11 @@ from sqlalchemy import (
     MetaData,
     select,
 )
-from sqlalchemy.orm import Session
 
+import sqlalchemy as db
+from sqlalchemy.orm import Session
+import ibis
+from ibis import _
 import datetime
 from typing import Optional
 from abc import ABC, abstractmethod
@@ -24,11 +27,67 @@ class MimicConnector(ABC):
     """
 
     @abstractmethod
-    def get_demographics(self, subject_id: int, date_of_interest: datetime.date):
+    def get_demographics(
+        self, subject_id: int, datetime_of_interest: datetime.datetime
+    ):
+        pass
+
+    @abstractmethod
+    def get_labs(
+        self, subject_id: int, datetime_of_interest: datetime.datetime
+    ) -> dict:
+        # chem 7, cardiac
+        pass
+
+    @abstractmethod
+    def get_cci(self, subject_id: int, datetime_of_interest: datetime.datetime) -> dict:
+        pass
+
+    @abstractmethod
+    def get_meds(
+        self, subject_id: int, datetime_of_interest: datetime.datetime
+    ) -> dict:
+        pass
+
+    @abstractmethod
+    def get_vitals(
+        self, subject_id: int, datetime_of_interest: datetime.datetime
+    ) -> dict:
         pass
 
 
-class MimicSqlConnector(MimicConnector):
+class MimicIbisConnector(MimicConnector):
+    def __init__(self, uri: str):
+        super(MimicIbisConnector, self).__init__()
+
+        self.con = ibis.postgres.connect(user="readonly", database="mimiciv")
+
+    def get_demographics(
+        self, subject_id: int, datetime_of_interest: datetime.datetime
+    ) -> dict:
+        return {}
+
+    def get_labs(
+        self, subject_id: int, datetime_of_interest: datetime.datetime
+    ) -> dict:
+        # chem 7, cardiac
+        raise NotImplementedError
+
+    def get_cci(self, subject_id: int, datetime_of_interest: datetime.datetime) -> dict:
+        raise NotImplementedError
+
+    def get_meds(
+        self, subject_id: int, datetime_of_interest: datetime.datetime
+    ) -> dict:
+        raise NotImplementedError
+
+    def get_vitals(
+        self, subject_id: int, datetime_of_interest: datetime.datetime
+    ) -> dict:
+        raise NotImplementedError
+
+
+class MimicSqlAlchemyConnector(MimicConnector):
 
     def __init__(self, uri: str):
         # local postgres: "postgresql+psycopg2://readonly@/mimiciv"
@@ -48,7 +107,9 @@ class MimicSqlConnector(MimicConnector):
             # NOTE: allows access to tables like self.db_metadata.tables['mimiciv_hosp.patients']
             self.db_metadata.reflect(bind=self.db_engine, schema=schema_name)
 
-    def get_demographics(self, subject_id: int, date_of_interest: datetime.date):
+    def get_demographics(
+        self, subject_id: int, datetime_of_interest: datetime.datetime
+    ) -> dict:
         """
         For now, just gender and age
         """
@@ -68,8 +129,8 @@ class MimicSqlConnector(MimicConnector):
 
         # NOTE: ignores leap years, but age-resolution in MIMIC is really only down to the year so a few days +/- not relevant
         info["age"] = (
-            date_of_interest
-            - datetime.date(year=info["anchor_year"], month=1, day=1)
+            datetime_of_interest
+            - datetime.datetime(year=info["anchor_year"], month=1, day=1)
             + datetime.timedelta(days=(365 * info["anchor_age"]))
         ).days / 365
 
@@ -77,6 +138,40 @@ class MimicSqlConnector(MimicConnector):
         info.pop("anchor_age")
 
         return info
+
+    def get_labs(self, subject_id, date_of_interest) -> dict:
+        t_chem7 = self.db_metadata.tables["mimiciv_derived.chemistry"]
+        t_cardiac_marker = self.db_metadata.tables["mimiciv_derived.cardiac_marker"]
+
+        # TODO: could add this as argument
+        window = datetime.timedelta(hours=24)
+
+        stmt = select(t_chem7).filter(
+            (t_chem7.columns.subject_id == subject_id)
+            & (
+                t_chem7.columns.charttime.between(
+                    date_of_interest - window, date_of_interest + window
+                )
+            )
+        )
+
+        with Session(self.db_engine) as s:
+            res = s.query(
+                db.func.avg(t_chem7.columns.chloride, t_chem7.columns.potassium)
+            ).filter(t_chem7.columns.subject_id == subject_id)
+
+        # TODO: incomplete implementation, going to just try to do something else
+        raise NotImplementedError
+        return {}
+
+    def get_cci(self, subject_id, date_of_interest):
+        raise NotImplementedError
+
+    def get_meds(self, subject_id, date_of_interest):
+        raise NotImplementedError
+
+    def get_vitals(self, subject_id, date_of_interest):
+        raise NotImplementedError
 
 
 class MimicDS(torch.utils.data.Dataset):
@@ -110,10 +205,11 @@ class MimicDS(torch.utils.data.Dataset):
 
         sig, meta = wfdb.rdsamp(path)
         subject_id = int(meta["comments"][0].split(":")[-1])
-        date = meta["base_date"]
+        datetime_of_study = datetime.datetime.combine(
+            meta["base_date"], meta["base_time"]
+        )
 
-        info = self.mimic_connector.get_demographics(subject_id, date)
-
+        info = self.mimic_connector.get_demographics(subject_id, datetime_of_study)
         sig = sig.transpose()
 
         assert meta["sig_name"] == [
@@ -163,7 +259,9 @@ class MimicDS(torch.utils.data.Dataset):
 if __name__ == "__main__":
 
     ds = MimicDS(
-        mimic_connector=MimicSqlConnector(uri="postgresql+psycopg2://readonly@/mimiciv")
+        mimic_connector=MimicIbisConnector(
+            uri="postgresql+psycopg2://readonly@/mimiciv"
+        )
     )
 
     sig, info = ds[0]
