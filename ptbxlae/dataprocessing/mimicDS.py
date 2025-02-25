@@ -17,6 +17,8 @@ from ibis import _
 import datetime
 from typing import Optional
 from abc import ABC, abstractmethod
+import psycopg2
+import psycopg2.extras
 
 
 class MimicConnector(ABC):
@@ -29,7 +31,7 @@ class MimicConnector(ABC):
     @abstractmethod
     def get_demographics(
         self, subject_id: int, datetime_of_interest: datetime.datetime
-    ):
+    ) -> dict:
         pass
 
     @abstractmethod
@@ -174,6 +176,133 @@ class MimicSqlAlchemyConnector(MimicConnector):
         raise NotImplementedError
 
 
+class MimicSqlConnector(MimicConnector):
+    def __init__(
+        self,
+        database: str,
+        user: str,
+        password: Optional[str] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+    ):
+        super().__init__()
+        self.connection = psycopg2.connect(
+            database=database, user=user, password=password, host=host, port=port
+        )
+        self.cursor = self.connection.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor
+        )
+
+    def get_demographics(self, subject_id, datetime_of_interest) -> dict:
+        q = """
+        --begin-sql
+        SELECT gender, anchor_age, anchor_year FROM mimiciv_hosp.patients WHERE subject_id = %s;
+        """, (
+            str(subject_id),
+        )
+
+        self.cursor.execute(*q)
+        records = self.cursor.fetchall()
+        assert len(records) == 1  # subject ids should be unique
+        info = records[0]
+
+        info["age"] = (
+            datetime_of_interest
+            - datetime.datetime(year=info["anchor_year"], month=1, day=1)
+            + datetime.timedelta(days=(365 * info["anchor_age"]))
+        ).days / 365
+
+        info.pop("anchor_year")
+        info.pop("anchor_age")
+
+        return info
+
+    def get_labs(self, subject_id, datetime_of_interest) -> dict:
+        q, params = (
+            """
+        --begin-sql
+        SELECT
+            albumin,
+            globulin,
+            total_protein,
+            aniongap,
+            bicarbonate,
+            bun,
+            calcium,
+            chloride,
+            creatinine,
+            glucose,
+            sodium,
+            potassium,
+            ABS(EXTRACT(EPOCH FROM (charttime - TIMESTAMP %(t)s))) AS diff_seconds
+        FROM mimiciv_derived.chemistry
+        WHERE subject_id = %(id)s
+        AND charttime BETWEEN TIMESTAMP %(t)s - INTERVAL '12 hours'
+            AND TIMESTAMP %(t)s + INTERVAL '12 hours'
+        ORDER BY diff_seconds;
+        """,
+            {
+                "id": str(subject_id),
+                "t": str(datetime_of_interest),
+            },
+        )
+
+        df = pd.read_sql(sql=q, params=params, con=self.connection)  # type: ignore
+
+        return df.bfill().drop(columns="diff_seconds").iloc[0].to_dict()
+
+    def get_cci(self, subject_id, datetime_of_interest):
+        raise NotImplementedError
+
+    def get_meds(self, subject_id, datetime_of_interest):
+        raise NotImplementedError
+
+    def get_vitals(self, subject_id, datetime_of_interest) -> dict:
+        q = (
+            """
+        --begin-sql
+        WITH vitalsign_combined AS (SELECT subject_id,
+                                   charttime,
+                                   heart_rate,
+                                   sbp,
+                                   dbp,
+                                   resp_rate,
+                                   temperature,
+                                   spo2
+                            FROM mimiciv_derived.vitalsign
+                            UNION
+                            SELECT subject_id,
+                                   charttime,
+                                   heartrate,
+                                   sbp,
+                                   dbp,
+                                   resprate,
+                                   temperature,
+                                   o2sat
+                            FROM mimiciv_ed.vitalsign)
+        SELECT AVG(heart_rate)  AS heart_rate,
+            AVG(sbp)         AS sbp,
+            AVG(dbp)         AS dbp,
+            AVG(resp_rate)   AS resp_rate,
+            AVG(temperature) AS temperature,
+            AVG(spo2)        AS spo2
+        FROM vitalsign_combined
+        WHERE subject_id = %(id)s
+        AND charttime BETWEEN TIMESTAMP %(t)s - INTERVAL '12 hours'
+            AND TIMESTAMP %(t)s + INTERVAL '12 hours';
+        """,
+            {
+                "id": str(subject_id),
+                "t": str(datetime_of_interest),
+            },
+        )
+
+        self.cursor.execute(*q)
+        records = self.cursor.fetchall()
+        assert len(records) == 1  # subject ids should be unique
+        return records[0]
+
+
 class MimicDS(torch.utils.data.Dataset):
     def __init__(
         self,
@@ -209,7 +338,14 @@ class MimicDS(torch.utils.data.Dataset):
             meta["base_date"], meta["base_time"]
         )
 
-        info = self.mimic_connector.get_demographics(subject_id, datetime_of_study)
+        info = {}
+        if self.mimic_connector:
+            info.update(
+                self.mimic_connector.get_demographics(subject_id, datetime_of_study)
+            )
+            info.update(self.mimic_connector.get_labs(subject_id, datetime_of_study))
+            info.update(self.mimic_connector.get_vitals(subject_id, datetime_of_study))
+
         sig = sig.transpose()
 
         assert meta["sig_name"] == [
@@ -258,11 +394,7 @@ class MimicDS(torch.utils.data.Dataset):
 
 if __name__ == "__main__":
 
-    ds = MimicDS(
-        mimic_connector=MimicIbisConnector(
-            uri="postgresql+psycopg2://readonly@/mimiciv"
-        )
-    )
+    ds = MimicDS(mimic_connector=MimicSqlConnector(database="mimiciv", user="readonly"))
 
     sig, info = ds[0]
 
