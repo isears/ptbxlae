@@ -32,6 +32,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
 
         self.log_sample_reconstructions = log_sample_reconstructions
         self.num_examples = num_examples
+        self.best_model_epoch = 0
 
     def on_train_start(self, trainer, pl_module):
         if self.log_sample_reconstructions:
@@ -52,6 +53,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
         return super().on_train_start(trainer, pl_module)
 
     def on_save_checkpoint(self, trainer, pl_module, checkpoint):
+        self.best_model_epoch = trainer.current_epoch
         if self.log_sample_reconstructions:
             pl_module.eval()
             with torch.no_grad():
@@ -79,8 +81,6 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
         return super().on_save_checkpoint(trainer, pl_module, checkpoint)
 
     def on_fit_end(self, trainer, pl_module):
-        self.best_model_path
-
         # Only save model once at end of training to avoid overhead / delays associated with uploading every model checkpoint
         if type(trainer.logger) == NeptuneLogger and self.log_sample_reconstructions:
             trainer.logger.experiment["model/checkpoints/best"].upload(

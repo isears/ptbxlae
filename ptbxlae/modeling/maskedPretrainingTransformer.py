@@ -53,21 +53,16 @@ class FixedPositionalEncoding(torch.nn.Module):
         return self.dropout(x)
 
 
-class MaskedPretrainingTransformer(BaseModel):
-
+class ConvEmbeddingTST(torch.nn.Module):
     def __init__(
         self,
-        lr: float,
-        max_len: int,
         d_model: int,
+        max_len: int,
+        embedding_kernel: int,
         nhead: int,
         nlayers: int,
-        embedding_kernel: int,
-        loss=None,
-        base_model_path=None,
     ):
-        super(MaskedPretrainingTransformer, self).__init__(lr, loss, base_model_path)
-
+        super(ConvEmbeddingTST, self).__init__()
         self.d_model = d_model
         self.max_len = max_len
 
@@ -112,10 +107,80 @@ class MaskedPretrainingTransformer(BaseModel):
 
         return reconstruction
 
+
+class ConvEmbeddingTSTClassifier(torch.nn.Module):
+    def __init__(
+        self,
+        n_classes: int,
+        freeze_base_model: bool,
+        reset_base_model: bool,
+        hf_pretrained: Optional[str] = None,
+    ):
+        super(ConvEmbeddingTSTClassifier, self).__init__()
+        self.freeze_base_model = freeze_base_model
+        self.reset_base_model = reset_base_model
+
+        if self.freeze_base_model:
+            for param in self.pretrained_transformer.parameters():
+                param.requires_grad = False
+
+        if self.reset_base_model:
+            raise NotImplementedError
+
+        if hf_pretrained:
+            self.pretrained_transformer = ConvEmbeddingTST.from_pretrained(
+                hf_pretrained
+            )
+        else:
+            # TODO: should really be passing these params from a config...
+            self.pretrained_transformer = ConvEmbeddingTST(
+                max_len=1000, d_model=64, nhead=4, embedding_kernel=7, nlayers=3
+            )
+
+        _sample = torch.rand((2, 12, self.pretrained_transformer.max_len))
+
+        with torch.no_grad():
+            _sample_encoded = self.pretrained_transformer.encode(_sample)
+            expected_encoding_shape = _sample_encoded.shape
+
+        print(
+            f"Encoder outputs ({expected_encoding_shape[1]}, {expected_encoding_shape[2]})"
+        )
+
+        self.classification_head = Sequential(
+            # ReLU(),
+            AdaptiveAvgPool1d(1),
+            Flatten(),
+            Linear(
+                # expected_encoding_shape[1] * expected_encoding_shape[2],
+                expected_encoding_shape[1],
+                n_classes,
+            ),
+            Sigmoid(),
+        )
+
+    def forward(self, x):
+        encoded = self.pretrained_transformer.encode(x)
+        return self.classification_head(encoded)
+
+
+class MaskedPretrainingModel(BaseModel):
+
+    def __init__(
+        self,
+        lr: float,
+        model: torch.nn.Module,
+        loss=None,
+        base_model_path=None,
+    ):
+        super(MaskedPretrainingModel, self).__init__(lr, loss, base_model_path)
+
+        self.model = model
+
     def training_step(self, batch):
         x, x_masked, mask, _ = batch
 
-        reconstruction = self.forward(x_masked)
+        reconstruction = self.model.forward(x_masked)
 
         reconstruction_masks_only = reconstruction * mask
         x_masks_only = x * mask
@@ -144,7 +209,7 @@ class MaskedPretrainingTransformer(BaseModel):
     def validation_step(self, batch):
         x, x_masked, mask, _ = batch
 
-        reconstruction = self.forward(x_masked)
+        reconstruction = self.model.forward(x_masked)
 
         reconstruction_masks_only = reconstruction * mask
         x_masks_only = x * mask
@@ -174,16 +239,12 @@ class MaskedPretrainingTransformer(BaseModel):
         raise NotImplementedError()
 
 
-class MaskedPretrainingTransformerClassifier(BaseModel):
+class ClassificationFineTuningModel(BaseModel):
 
-    def __init__(
-        self,
-        lr,
-        freeze_base_model: bool,
-        n_classes: int,
-        pretrained_path: Optional[str] = None,
-    ):
-        super(MaskedPretrainingTransformerClassifier, self).__init__(lr, BCELoss())
+    def __init__(self, lr: float, model: torch.nn.Module, n_classes: int):
+        super(ClassificationFineTuningModel, self).__init__(lr, BCELoss())
+
+        self.model = model.to(self.device)
 
         self.train_auroc = AUROC(task="multilabel", num_labels=n_classes)
         self.train_auprc = AveragePrecision(task="multilabel", num_labels=n_classes)
@@ -193,56 +254,10 @@ class MaskedPretrainingTransformerClassifier(BaseModel):
         self.train_metrics = [self.train_auroc, self.train_auprc]
         self.valid_metrics = [self.valid_auroc, self.valid_auprc]
 
-        self.freeze_base_model = freeze_base_model
-
-        if pretrained_path:
-            self.pretrained_transformer = (
-                MaskedPretrainingTransformer.load_from_checkpoint(pretrained_path).to(
-                    self.device
-                )
-            )
-        else:
-            # TODO: should really be passing these params from a config...
-            self.pretrained_transformer = MaskedPretrainingTransformer(
-                lr=lr, max_len=1000, d_model=64, nhead=4, embedding_kernel=7, nlayers=3
-            )
-
-        _sample = torch.rand((2, 12, self.pretrained_transformer.max_len)).to(
-            self.device
-        )
-
-        with torch.no_grad():
-            _sample_encoded = self.pretrained_transformer.encode(_sample)
-            expected_encoding_shape = _sample_encoded.shape
-
-        print(
-            f"Encoder outputs ({expected_encoding_shape[1]}, {expected_encoding_shape[2]})"
-        )
-
-        if self.freeze_base_model:
-            for param in self.pretrained_transformer.parameters():
-                param.requires_grad = False
-
-        self.classification_head = Sequential(
-            # ReLU(),
-            AdaptiveAvgPool1d(1),
-            Flatten(),
-            Linear(
-                # expected_encoding_shape[1] * expected_encoding_shape[2],
-                expected_encoding_shape[1],
-                n_classes,
-            ),
-            Sigmoid(),
-        )
-
-    def forward(self, x):
-        encoded = self.pretrained_transformer.encode(x)
-        return self.classification_head(encoded)
-
     def training_step(self, batch):
         x, y = batch
 
-        preds = self.forward(x)
+        preds = self.model.forward(x)
 
         loss = self.loss(preds, y)
 
@@ -271,7 +286,7 @@ class MaskedPretrainingTransformerClassifier(BaseModel):
     def validation_step(self, batch):
         x, y = batch
 
-        preds = self.forward(x)
+        preds = self.model.forward(x)
 
         loss = self.loss(preds, y)
 
@@ -302,11 +317,16 @@ class MaskedPretrainingTransformerClassifier(BaseModel):
 
 
 if __name__ == "__main__":
-    clf = MaskedPretrainingTransformerClassifier(
-        lr=1e-4,
-        pretrained_path="cache/archivedmodels/imputation-transformer-ptbxlae-2914.ckpt",
-        freeze_base_model=False,
-        n_classes=44,
-    )
+    ...
+    # clf = ClassificationFineTuningModel(
+    #     model=ConvEmbeddingTSTClassifier(
+    #         pretrained_path="cache/archivedmodels/imputation-transformer-ptbxlae-2914.ckpt",
+    #         freeze_base_model=False,
+    #         reset_base_model=False,
+    #         n_classes=44,
+    #     ),
+    #     lr=1e-4,
+    #     n_classes=44,
+    # )
 
-    summary(clf, input_size=(32, 12, 1000))
+    # summary(clf, input_size=(32, 12, 1000))
