@@ -212,8 +212,10 @@ class MimicSqlConnector(MimicConnector):
             + datetime.timedelta(days=(365 * info["anchor_age"]))
         ).days / 365
 
+        info["female"] = info["gender"] == "F"
         info.pop("anchor_year")
         info.pop("anchor_age")
+        info.pop("gender")
 
         return info
 
@@ -346,6 +348,9 @@ class MimicDS(torch.utils.data.Dataset):
             info.update(self.mimic_connector.get_labs(subject_id, datetime_of_study))
             info.update(self.mimic_connector.get_vitals(subject_id, datetime_of_study))
 
+        # Probably overkill but want to explicitly guarantee consistent order across workers
+        info_sorted = {key: value for key, value in sorted(info.items())}
+
         sig = sig.transpose()
 
         assert meta["sig_name"] == [
@@ -389,7 +394,12 @@ class MimicDS(torch.utils.data.Dataset):
             nk.ecg_clean, 1, sig_resamp, sampling_rate=self.freq  # type: ignore
         )  # type: ignore
 
-        return torch.Tensor(sig_clean).float(), info
+        return (
+            torch.Tensor(sig_clean).float(),
+            torch.Tensor(
+                [k if k else float("nan") for k in info_sorted.values()]
+            ).float(),
+        )
 
 
 if __name__ == "__main__":
