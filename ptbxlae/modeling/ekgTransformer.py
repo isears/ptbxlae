@@ -1,14 +1,12 @@
-from ptbxlae.modeling import BaseModel
 import torch
 import math
 from torch.nn import BCELoss, Linear, Sequential, Flatten, ReLU, Sigmoid, MSELoss
 from torchmetrics import MetricCollection
 from torchmetrics.classification import AUROC, AveragePrecision
 from torchmetrics.regression.mse import MeanSquaredError
-from torchmetrics.metric import Metric
 from torchinfo import summary
-from torch.nn import AdaptiveAvgPool1d, ModuleList
-from typing import Optional, Literal, Iterable
+from torch.nn import AdaptiveAvgPool1d
+from typing import Literal
 import lightning as L
 from abc import ABC, abstractmethod
 
@@ -113,7 +111,7 @@ class ConvEmbeddingTST(torch.nn.Module):
         return reconstruction
 
 
-class BaseTransformerLM(L.LightningModule):
+class BaseTransformerLM(L.LightningModule, ABC):
     def __init__(
         self,
         lr: float,
