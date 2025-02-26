@@ -2,11 +2,16 @@ import torch
 import math
 from torch.nn import BCELoss, Linear, Sequential, Flatten, ReLU, Sigmoid, MSELoss
 from torchmetrics import MetricCollection
-from torchmetrics.classification import AUROC, AveragePrecision
+from torchmetrics.classification import (
+    AUROC,
+    AveragePrecision,
+    MultilabelAUROC,
+    MultilabelAveragePrecision,
+)
 from torchmetrics.regression.mse import MeanSquaredError
 from torchinfo import summary
 from torch.nn import AdaptiveAvgPool1d
-from typing import Literal
+from typing import Literal, Optional
 import lightning as L
 from abc import ABC, abstractmethod
 
@@ -124,18 +129,49 @@ class BaseTransformerLM(L.LightningModule, ABC):
         self.loss = loss
         self.train_metrics = train_metrics
         self.valid_metrics = valid_metrics
+        self.save_hyperparameters()
 
     @abstractmethod
     def _run_model(self, batch) -> tuple[torch.Tensor, torch.Tensor]: ...
+
+    def _load_with_options(
+        self,
+        path: str,
+        options: Optional[Literal["freeze", "reset"]] = None,
+    ) -> ConvEmbeddingTST:
+        base_transformer_lm = ImputationTransformerLM.load_from_checkpoint(path)
+
+        if options == "reset":
+            tst = base_transformer_lm.tst
+            raise NotImplementedError
+        elif options == "freeze":
+            tst = base_transformer_lm.tst
+
+            for param in tst.parameters():
+                print(f"Freezing {param}")
+                param.requires_grad = False
+
+            tst.eval()
+        else:
+            tst = base_transformer_lm.tst
+
+        return tst
 
     def _do_step(
         self, batch, stage: Literal["train", "val", "test"], metrics: MetricCollection
     ):
         expected_output, actual_output = self._run_model(batch)
 
-        loss = self.loss(actual_output, expected_output)
+        loss = self.loss(actual_output, expected_output.float())
 
-        self.log(f"{stage}_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            f"{stage}_loss",
+            loss,
+            on_step=False,
+            prog_bar=True,
+            on_epoch=True,
+            sync_dist=True,
+        )
 
         for metric_name, metric_obj in metrics.items():
             metric_obj.update(actual_output, expected_output)
@@ -185,6 +221,16 @@ class ImputationTransformerLM(BaseTransformerLM):
         return x_masks_only, reconstruction_masks_only
 
 
+# class FloatAcceptingAUROC(MultilabelAUROC):
+#     def update(self, preds, y):
+#         return super().update(preds, y.int())
+
+
+# class FloatAcceptingAveragePrecision(MultilabelAveragePrecision):
+#     def update(self, preds, y):
+#         return super().update(preds, y.int())
+
+
 class ClassificationTransformerLM(BaseTransformerLM):
 
     def __init__(
@@ -192,27 +238,26 @@ class ClassificationTransformerLM(BaseTransformerLM):
         lr: float,
         pretrained_path: str,
         n_labels: int,
+        base_options: Optional[Literal["freeze", "reset"]] = None,
     ):
         super(ClassificationTransformerLM, self).__init__(
             lr=lr,
             loss=BCELoss(),
             train_metrics=MetricCollection(
                 [
-                    AUROC(task="multilabel", num_labels=n_labels),
-                    AveragePrecision(task="multilabel", num_labels=n_labels),
+                    MultilabelAUROC(num_labels=n_labels),
+                    MultilabelAveragePrecision(num_labels=n_labels),
                 ]
             ),
             valid_metrics=MetricCollection(
                 [
-                    AUROC(task="multilabel", num_labels=n_labels),
-                    AveragePrecision(task="multilabel", num_labels=n_labels),
+                    MultilabelAUROC(num_labels=n_labels),
+                    MultilabelAveragePrecision(num_labels=n_labels),
                 ]
             ),
         )
 
-        self.base_transformer = ImputationTransformerLM.load_from_checkpoint(
-            pretrained_path
-        ).tst
+        self.base_transformer = self._load_with_options(pretrained_path, base_options)
 
         self.classification_head = Sequential(
             # ReLU(),
@@ -227,7 +272,7 @@ class ClassificationTransformerLM(BaseTransformerLM):
 
     def _run_model(self, batch):
         x, y = batch
-        z = self.base_transformer(x)
+        z = self.base_transformer.encode(x)
         preds = self.classification_head(z)
         return y, preds
 
@@ -240,6 +285,7 @@ class RegressionTransformerLM(BaseTransformerLM):
         base_transformer: ConvEmbeddingTST,
         regression_head: torch.nn.Module,
         n_outputs: int,
+        base_options: Optional[Literal["freeze", "reset"]] = None,
     ):
         super(RegressionTransformerLM, self).__init__(
             lr=lr,
@@ -264,7 +310,7 @@ class RegressionTransformerLM(BaseTransformerLM):
 
     def _run_model(self, batch):
         x, y = batch
-        z = self.base_transformer(x)
+        z = self.base_transformer.encode(x)
         preds = self.regression_head(z)
 
         return y, preds

@@ -23,4 +23,4 @@ fit:
           monitor: val_loss
           mode: min
           dirpath: ./cache/savedmodels/
-          filename: best-{epoch:04d}-{val_loss:.6f}
+          filename: '{epoch:04d}-{val_loss:.6f}'

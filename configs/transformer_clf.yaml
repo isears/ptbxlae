@@ -1,10 +1,9 @@
 model:
-  class_path: ptbxlae.modeling.maskedPretrainingTransformer.MaskedPretrainingTransformerClassifier
+  class_path: ptbxlae.modeling.ekgTransformer.ClassificationTransformerLM
   init_args:
     lr: 1e-4
-    freeze_base_model: False
-    n_classes: 44
-
+    n_labels: 44
+    
 data:
   class_path: ptbxlae.dataprocessing.dataModules.DefaultDM
   init_args:

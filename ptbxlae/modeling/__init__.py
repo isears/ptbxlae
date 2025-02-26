@@ -35,6 +35,11 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
         self.best_model_epoch = 0
 
     def on_train_start(self, trainer, pl_module):
+
+        # Include model name in filename
+        self.filename = f"{pl_module.__class__.__name__}_{self.filename}"
+
+        # Save some examples if logging reconstructions
         if self.log_sample_reconstructions:
             self.example_batch = torch.stack(
                 [
@@ -43,6 +48,7 @@ class NeptuneUploadingModelCheckpoint(ModelCheckpoint):
                 ]
             )
 
+        # Tag neptune run with model name
         if type(trainer.logger) == NeptuneLogger:
             trainer.logger.experiment["sys/tags"].add(
                 [

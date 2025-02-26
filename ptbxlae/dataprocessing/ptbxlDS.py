@@ -94,7 +94,7 @@ class PtbxlMultilabeledDS(PtbxlDS):
 
     def __getitem__(self, index):
         sig, labels_dict = super().__getitem__(index)
-        return sig, torch.Tensor(list(labels_dict.values())).float()
+        return sig, torch.Tensor(list(labels_dict.values())).int()
 
 
 if __name__ == "__main__":
