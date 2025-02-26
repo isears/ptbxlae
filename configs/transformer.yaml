@@ -1,9 +1,9 @@
 model:
-  class_path: ptbxlae.modeling.maskedPretrainingTransformer.MaskedPretrainingModel
+  class_path: ptbxlae.modeling.ekgTransformer.ImputationTransformerLM
   init_args:
     lr: 1e-4
-    model:
-      class_path: ptbxlae.modeling.maskedPretrainingTransformer.ConvEmbeddingTST
+    tst:
+      class_path: ptbxlae.modeling.ekgTransformer.ConvEmbeddingTST
       init_args:
         d_model: 64
         max_len: 1000
