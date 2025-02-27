@@ -82,7 +82,7 @@ class ConvEmbeddingTST(torch.nn.Module):
             self.d_model, max_len=self.max_len
         )
 
-        self.model = torch.nn.TransformerEncoder(
+        self.backbone = torch.nn.TransformerEncoder(
             torch.nn.TransformerEncoderLayer(
                 d_model=self.d_model,
                 nhead=nhead,
@@ -101,7 +101,7 @@ class ConvEmbeddingTST(torch.nn.Module):
         x_embeded = x_embeded.permute(0, 2, 1)  # [batch_dim, seq_len, feat_dim]
         inp = self.positional_encoding(x_embeded)
 
-        encoded = self.model(
+        encoded = self.backbone(
             src=inp,
             # TODO: for padding masks when support for variable-length sequences is implemented
             # src_key_padding_mask=mask,
@@ -134,7 +134,7 @@ class BaseTransformerLM(L.LightningModule, ABC):
     @abstractmethod
     def _run_model(self, batch) -> tuple[torch.Tensor, torch.Tensor]: ...
 
-    def _load_with_options(
+    def _load_base_with_options(
         self,
         path: str,
         options: Optional[Literal["freeze", "reset"]] = None,
@@ -142,9 +142,37 @@ class BaseTransformerLM(L.LightningModule, ABC):
         base_transformer_lm = ImputationTransformerLM.load_from_checkpoint(path)
 
         if options == "reset":
-            tst = base_transformer_lm.tst
-            raise NotImplementedError
+            print("Resetting model to un-pretrained state")
+            old_tst = base_transformer_lm.tst
+            # TODO: this depends a lot on current tst architecture and will break if architecture changes too much
+            # But it's the most reliable way to make sure the model is fresh
+            old_args = None
+
+            try:
+
+                old_args = dict(
+                    d_model=old_tst.d_model,
+                    max_len=old_tst.max_len,
+                    embedding_kernel=old_tst.conv_embedding.kernel_size[0],
+                    nhead=old_tst.backbone.layers[0].self_attn.num_heads,
+                    nlayers=old_tst.backbone.num_layers,
+                )
+
+                tst = ConvEmbeddingTST(**old_args)  # type: ignore
+            except Exception as e:
+                print(
+                    "There was an error re-initializing a new TST with old arguments. It is very possible there was an architecture change that was not properly refactored here"
+                )
+
+                if old_args:
+                    print("Tried initializing with the following:")
+                    for k, v in old_args:
+                        print(f"{k} ==> {v}")
+
+                raise e
+
         elif options == "freeze":
+            print("Freezing base transformer")
             tst = base_transformer_lm.tst
 
             for param in tst.parameters():
@@ -221,16 +249,6 @@ class ImputationTransformerLM(BaseTransformerLM):
         return x_masks_only, reconstruction_masks_only
 
 
-# class FloatAcceptingAUROC(MultilabelAUROC):
-#     def update(self, preds, y):
-#         return super().update(preds, y.int())
-
-
-# class FloatAcceptingAveragePrecision(MultilabelAveragePrecision):
-#     def update(self, preds, y):
-#         return super().update(preds, y.int())
-
-
 class ClassificationTransformerLM(BaseTransformerLM):
 
     def __init__(
@@ -257,7 +275,9 @@ class ClassificationTransformerLM(BaseTransformerLM):
             ),
         )
 
-        self.base_transformer = self._load_with_options(pretrained_path, base_options)
+        self.base_transformer = self._load_base_with_options(
+            pretrained_path, base_options
+        )
 
         self.classification_head = Sequential(
             # ReLU(),
