@@ -220,7 +220,7 @@ class MimicSqlConnector(MimicConnector):
         return info
 
     def get_labs(self, subject_id, datetime_of_interest) -> dict:
-        q, params = (
+        q = (
             """
         --begin-sql
         SELECT
@@ -249,7 +249,10 @@ class MimicSqlConnector(MimicConnector):
             },
         )
 
-        df = pd.read_sql(sql=q, params=params, con=self.connection)  # type: ignore
+        self.cursor.execute(*q)
+        records = self.cursor.fetchall()
+
+        df = pd.DataFrame(records)
 
         return df.bfill().drop(columns="diff_seconds").iloc[0].to_dict()
 

@@ -16,6 +16,30 @@ import lightning as L
 from abc import ABC, abstractmethod
 
 
+class NanTolerantMSELoss(MSELoss):
+    """
+    Accepts nans in target tensor
+
+    - Identify indices of nans in target
+    - Replace all values in input and target at nan indices with 0
+    - Store count of all nan indices
+    - Compute loss as usual, with sum reduction
+    - Divide loss by number of non-nan elements
+    """
+
+    def __init__(self):
+        super().__init__(reduction="sum")
+
+    def forward(self, input, target):
+        nanmask = torch.isnan(target)
+        target[nanmask] = 0.0
+        input[nanmask] = 0.0
+
+        sum_reduction_loss = super().forward(input, target)
+
+        return sum_reduction_loss / torch.sum(nanmask)
+
+
 # From https://github.com/pytorch/examples/blob/master/word_language_model/model.py
 class FixedPositionalEncoding(torch.nn.Module):
     r"""Inject some information about the relative or absolute position of the tokens
@@ -176,7 +200,6 @@ class BaseTransformerLM(L.LightningModule, ABC):
             tst = base_transformer_lm.tst
 
             for param in tst.parameters():
-                print(f"Freezing {param}")
                 param.requires_grad = False
 
             tst.eval()
@@ -302,23 +325,22 @@ class RegressionTransformerLM(BaseTransformerLM):
     def __init__(
         self,
         lr: float,
-        base_transformer: ConvEmbeddingTST,
-        regression_head: torch.nn.Module,
+        pretrained_path: str,
         n_outputs: int,
         base_options: Optional[Literal["freeze", "reset"]] = None,
     ):
         super(RegressionTransformerLM, self).__init__(
             lr=lr,
-            loss=MSELoss(reduction="sum"),
+            loss=NanTolerantMSELoss(),
             train_metrics=MetricCollection([MeanSquaredError()]),
             valid_metrics=MetricCollection([MeanSquaredError()]),
         )
 
         self.lr = lr
-        self.base_transformer = base_transformer
-        self.regression_head = regression_head
-
-        self.classification_head = Sequential(
+        self.base_transformer = self._load_base_with_options(
+            pretrained_path, base_options
+        )
+        self.regression_head = Sequential(
             # ReLU(),
             AdaptiveAvgPool1d(1),
             Flatten(),
@@ -332,6 +354,9 @@ class RegressionTransformerLM(BaseTransformerLM):
         x, y = batch
         z = self.base_transformer.encode(x)
         preds = self.regression_head(z)
+
+        # TODO: nan masking everything to zero results in optimistic loss for high-missingness examples
+        # this may be suboptimal. Maybe better to calculate loss only for examples that were present
 
         return y, preds
 
