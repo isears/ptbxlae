@@ -2,14 +2,12 @@ model:
   class_path: ptbxlae.modeling.ekgTransformer.ImputationTransformerLM
   init_args:
     lr: 1e-4
-    tst:
-      class_path: ptbxlae.modeling.ekgTransformer.ConvEmbeddingTST
-      init_args:
-        d_model: 64
-        max_len: 1000
-        nhead: 4
-        nlayers: 3
-        embedding_kernel: 7
+    conf:
+      d_model: 64
+      max_len: 1000
+      nhead: 4
+      nlayers: 3
+      embedding_kernel: 7
 
 data:
   class_path: ptbxlae.dataprocessing.dataModules.DefaultDM

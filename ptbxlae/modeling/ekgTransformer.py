@@ -14,6 +14,7 @@ from torch.nn import AdaptiveAvgPool1d
 from typing import Literal, Optional
 import lightning as L
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, asdict
 
 
 class NanTolerantMSELoss(MSELoss):
@@ -85,7 +86,17 @@ class FixedPositionalEncoding(torch.nn.Module):
         return self.dropout(x)
 
 
+@dataclass
+class TstConfig:
+    d_model: int
+    max_len: int
+    embedding_kernel: int
+    nhead: int
+    nlayers: int
+
+
 class ConvEmbeddingTST(torch.nn.Module):
+    # TODO: may have to initialize with config object (dataclass) for easier loading by grandchild models
     def __init__(
         self,
         d_model: int,
@@ -119,17 +130,19 @@ class ConvEmbeddingTST(torch.nn.Module):
             self.d_model, 12, kernel_size=embedding_kernel
         )
 
-    def encode(self, x):
+    def encode(self, x, padmasks=None):
         x_embeded = self.conv_embedding(x)
         # Pytorch transformer convention features dimension last, but convolutional convention is channels first
         x_embeded = x_embeded.permute(0, 2, 1)  # [batch_dim, seq_len, feat_dim]
         inp = self.positional_encoding(x_embeded)
 
-        encoded = self.backbone(
-            src=inp,
-            # TODO: for padding masks when support for variable-length sequences is implemented
-            # src_key_padding_mask=mask,
-        )
+        if padmasks:
+            encoded = self.backbone(
+                src=inp,
+                src_key_padding_mask=~padmasks,
+            )
+        else:
+            encoded = self.backbone(src=inp)
 
         return encoded.permute(0, 2, 1)
 
@@ -141,6 +154,7 @@ class ConvEmbeddingTST(torch.nn.Module):
 
 
 class BaseTransformerLM(L.LightningModule, ABC):
+
     def __init__(
         self,
         lr: float,
@@ -153,6 +167,7 @@ class BaseTransformerLM(L.LightningModule, ABC):
         self.loss = loss
         self.train_metrics = train_metrics
         self.valid_metrics = valid_metrics
+
         self.save_hyperparameters()
 
     @abstractmethod
@@ -160,53 +175,46 @@ class BaseTransformerLM(L.LightningModule, ABC):
 
     def _load_base_with_options(
         self,
-        path: str,
+        lightning_ckpt_path: str,
         options: Optional[Literal["freeze", "reset"]] = None,
-    ) -> ConvEmbeddingTST:
-        base_transformer_lm = ImputationTransformerLM.load_from_checkpoint(path)
+    ):
+        base_lightning_module = torch.load(lightning_ckpt_path)
+
+        try:
+            tst_config = TstConfig(**base_lightning_module["hyper_parameters"]["conf"])
+        except KeyError as e:
+            print(
+                f"Checkpoint file at {lightning_ckpt_path} does not appear to include TST configuration at the expected location"
+            )
+
+            raise e
+        except TypeError as e:
+            print("The configuration was insufficient to instantiate a model")
+            raise e
+
+        # Ensure the TST configuration is carried forward as a hyperparameter
+        self.save_hyperparameters({"conf": asdict(tst_config)})
+
+        self.tst = ConvEmbeddingTST(**asdict(tst_config))
+        self.tst.load_state_dict(
+            {
+                k[4:]: v
+                for k, v in base_lightning_module["state_dict"].items()
+                if k.startswith("tst.")
+            }
+        )
 
         if options == "reset":
             print("Resetting model to un-pretrained state")
-            old_tst = base_transformer_lm.tst
-            # TODO: this depends a lot on current tst architecture and will break if architecture changes too much
-            # But it's the most reliable way to make sure the model is fresh
-            old_args = None
-
-            try:
-
-                old_args = dict(
-                    d_model=old_tst.d_model,
-                    max_len=old_tst.max_len,
-                    embedding_kernel=old_tst.conv_embedding.kernel_size[0],
-                    nhead=old_tst.backbone.layers[0].self_attn.num_heads,
-                    nlayers=old_tst.backbone.num_layers,
-                )
-
-                tst = ConvEmbeddingTST(**old_args)  # type: ignore
-            except Exception as e:
-                print(
-                    "There was an error re-initializing a new TST with old arguments. It is very possible there was an architecture change that was not properly refactored here"
-                )
-
-                if old_args:
-                    print("Tried initializing with the following:")
-                    for k, v in old_args:
-                        print(f"{k} ==> {v}")
-
-                raise e
+            self.tst = ConvEmbeddingTST(**asdict(tst_config))
 
         elif options == "freeze":
             print("Freezing base transformer")
-            tst = base_transformer_lm.tst
 
             for param in tst.parameters():
                 param.requires_grad = False
 
-            tst.eval()
-        else:
-            tst = base_transformer_lm.tst
-
-        return tst
+            self.tst.eval()
 
     def _do_step(
         self, batch, stage: Literal["train", "val", "test"], metrics: MetricCollection
@@ -252,7 +260,7 @@ class BaseTransformerLM(L.LightningModule, ABC):
 
 class ImputationTransformerLM(BaseTransformerLM):
 
-    def __init__(self, lr: float, tst: ConvEmbeddingTST):
+    def __init__(self, lr: float, conf: TstConfig):
         super(ImputationTransformerLM, self).__init__(
             lr=lr,
             loss=MSELoss(reduction="sum"),
@@ -260,7 +268,7 @@ class ImputationTransformerLM(BaseTransformerLM):
             valid_metrics=MetricCollection([MeanSquaredError()]),
         )
 
-        self.tst = tst
+        self.tst = ConvEmbeddingTST(**asdict(conf))
 
     def _run_model(self, batch):
         x, x_masked, mask, meta = batch
@@ -298,16 +306,14 @@ class ClassificationTransformerLM(BaseTransformerLM):
             ),
         )
 
-        self.base_transformer = self._load_base_with_options(
-            pretrained_path, base_options
-        )
+        self._load_base_with_options(pretrained_path, base_options)
 
         self.classification_head = Sequential(
             # ReLU(),
             AdaptiveAvgPool1d(1),
             Flatten(),
             Linear(
-                self.base_transformer.d_model,
+                self.tst.d_model,
                 n_labels,
             ),
             Sigmoid(),
@@ -315,7 +321,7 @@ class ClassificationTransformerLM(BaseTransformerLM):
 
     def _run_model(self, batch):
         x, y = batch
-        z = self.base_transformer.encode(x)
+        z = self.tst.encode(x)
         preds = self.classification_head(z)
         return y, preds
 
@@ -337,26 +343,21 @@ class RegressionTransformerLM(BaseTransformerLM):
         )
 
         self.lr = lr
-        self.base_transformer = self._load_base_with_options(
-            pretrained_path, base_options
-        )
+        self._load_base_with_options(pretrained_path, base_options)
         self.regression_head = Sequential(
             # ReLU(),
             AdaptiveAvgPool1d(1),
             Flatten(),
             Linear(
-                self.base_transformer.d_model,
+                self.tst.d_model,
                 n_outputs,
             ),
         )
 
     def _run_model(self, batch):
         x, y = batch
-        z = self.base_transformer.encode(x)
+        z = self.tst.encode(x)
         preds = self.regression_head(z)
-
-        # TODO: nan masking everything to zero results in optimistic loss for high-missingness examples
-        # this may be suboptimal. Maybe better to calculate loss only for examples that were present
 
         return y, preds
 
