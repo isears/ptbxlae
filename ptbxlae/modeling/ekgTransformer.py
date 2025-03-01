@@ -111,7 +111,7 @@ class ConvEmbeddingTST(torch.nn.Module):
 
         # TODO: make this strided if model gets too big (would have to adjust positional encoding max_len as well)
         self.conv_embedding = torch.nn.Conv1d(
-            12, self.d_model, kernel_size=embedding_kernel
+            12, self.d_model, kernel_size=embedding_kernel, padding="same"
         )
         self.positional_encoding = FixedPositionalEncoding(
             self.d_model, max_len=self.max_len
@@ -127,7 +127,10 @@ class ConvEmbeddingTST(torch.nn.Module):
         )
 
         self.output_layer = torch.nn.ConvTranspose1d(
-            self.d_model, 12, kernel_size=embedding_kernel
+            self.d_model,
+            12,
+            kernel_size=embedding_kernel,
+            padding=embedding_kernel // 2,
         )
 
     def encode(self, x, padmasks=None):
@@ -136,7 +139,7 @@ class ConvEmbeddingTST(torch.nn.Module):
         x_embeded = x_embeded.permute(0, 2, 1)  # [batch_dim, seq_len, feat_dim]
         inp = self.positional_encoding(x_embeded)
 
-        if padmasks:
+        if padmasks is not None:
             encoded = self.backbone(
                 src=inp,
                 src_key_padding_mask=~padmasks,
@@ -149,7 +152,6 @@ class ConvEmbeddingTST(torch.nn.Module):
     def forward(self, x_masked):
         encoded = self.encode(x_masked)
         reconstruction = self.output_layer(encoded)
-
         return reconstruction
 
 
@@ -211,7 +213,7 @@ class BaseTransformerLM(L.LightningModule, ABC):
         elif options == "freeze":
             print("Freezing base transformer")
 
-            for param in tst.parameters():
+            for param in self.tst.parameters():
                 param.requires_grad = False
 
             self.tst.eval()
