@@ -2,7 +2,7 @@
 model:
   class_path: ptbxlae.modeling.convolutionalVAE.ConvolutionalEcgVAE
   init_args:
-    latent_dim: 100
+    latent_dim: 25
     conv_depth: 5
     fc_depth: 1
     fc_scale_factor: 4

@@ -4,6 +4,7 @@ import random
 import wfdb
 import neurokit2 as nk
 import numpy as np
+from typing import Optional
 
 
 class MimicDS(torch.utils.data.Dataset):
@@ -12,16 +13,18 @@ class MimicDS(torch.utils.data.Dataset):
         root_folder: str = "./data/mimiciv-ecg",
         return_labels: bool = False,
         freq: int = 100,
+        study_ids: Optional[list] = None,
     ):
         super().__init__()
         self.root_folder = root_folder
         self.return_labels = return_labels
-        self.record_list = (
-            pd.read_csv(f"{root_folder}/record_list.csv")
-            .groupby("subject_id")
-            .agg(list)
-        )
 
+        records = pd.read_csv(f"{root_folder}/record_list.csv")
+
+        if study_ids is not None:
+            records = records[records["study_id"].apply(lambda x: int(x) in study_ids)]
+
+        self.record_list = records.groupby("subject_id").agg(list)
         self.freq = freq
 
         random.seed(42)
@@ -77,7 +80,6 @@ class MimicDS(torch.utils.data.Dataset):
         sig_clean = np.apply_along_axis(
             nk.ecg_clean, 1, sig_resamp, sampling_rate=self.freq  # type: ignore
         )  # type: ignore
-
 
         return torch.Tensor(sig_clean).float(), {}
 
